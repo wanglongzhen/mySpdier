@@ -24,6 +24,7 @@ import traceback
 import message_queue
 import multiprocessing
 import threading
+import datetime
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -129,7 +130,7 @@ class BaiXing(object):
         print time.strftime('%Y-%m-%d:%H-%M-%S')
         data = self.getDetailContentByUrl(body)
         try:
-            self.writeDB(data)
+            if len(data) > 0 : self.writeDB(data)
         except Exception, e:
             pass
         return 1
@@ -312,16 +313,16 @@ class BaiXing(object):
         """
 
         cursor = self._conn.cursor()
-        insert_sql = 'insert into danbaobaoxian(title, post_time, service_feature, phone_number, service_provided, source, url_hash, url) values('\
-                     + "'" + data['title'] + "', '" + data['post_time'] + "', '" + data['service_feature'] + "', '" + data['phone_number'] \
-                     + "', '" + data['service_provided'] + "', " + data['source'] + ", " + str(data['url_hash']) + ", '" + data['url'] + "'" + ')'
-
         try:
+            insert_sql = 'insert into danbaobaoxian(title, post_time, service_feature, phone_number, service_provided, source, url_hash, url, add_time) values('\
+                     + "'" + data['title'] + "', '" + data['post_time'] + "', '" + data['service_feature'] + "', '" + data['phone_number'] \
+                     + "', '" + data['service_provided'] + "', " + data['source'] + ", " + str(data['url_hash']) + ", '" + data['url'] +  "', '" + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "')"
+
             cursor.execute(insert_sql.encode('utf-8'))
         except Exception, e:
-            pass
             # print "Error insert sql", insert_sql.encode('utf-8')
             # print traceback.print_exc()
+            pass
         finally:
             self._conn.commit()
             cursor.close()
