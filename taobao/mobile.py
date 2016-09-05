@@ -101,7 +101,26 @@ class TransferAccounts(object):
             pass
         driver.find_element_by_id('submit_bt').click()
 
+        self.waiter_fordisplayed(driver, 'divLogin')
+
         pass
+
+    def waiter_fordisplayed(self, browser, element):
+        count = 0
+        while(True):
+            count = count + 1
+            if count > 20:
+                return False
+            try:
+                ui.WebDriverWait(browser, 10).until(lambda driver : driver.find_element_by_id(element).is_displayed())
+                break
+            except Exception, e:
+                pass
+                print('元素没有展示' + element)
+                self.logger.error(u'元素没有展示' + element)
+
+        return True
+
 
 def main():
     transfer_accounts = TransferAccounts()
