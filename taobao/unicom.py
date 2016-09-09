@@ -21,12 +21,14 @@ import urlparse
 import re
 import ConfigParser
 import MySQLdb
+import traceback
+from PIL import Image
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
 class TransferAccounts(object):
-    def __init__(self, username = '18662726006', passwd = '526280'):
+    def __init__(self, username = '18513622865', passwd = '861357'):
         self.headers = {
             'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36'
         }
@@ -98,24 +100,50 @@ class TransferAccounts(object):
             driver.get(url)
 
         frame = driver.find_element_by_xpath('//iframe[@class="login_iframe"]')
+        fram_rect = frame.rect
         driver.switch_to.frame(frame)
 
         time.sleep(2)
         driver.find_element_by_xpath("//input[@id='userName']").clear()
         driver.find_element_by_xpath("//input[@id='userName']").send_keys(user)
 
+        self.logger.info(u'登录联通,输入用户名： ' + user + u'， 密码： ')
         time.sleep(2)
         driver.find_element_by_xpath("//input[@id='userPwd']").clear()
         driver.find_element_by_xpath("//input[@id='userPwd']").send_keys(passwd)
 
+        self.logger.info(u'登录联通,输入密码： ' + user + u'， 密码： ')
+
         try:
-            if driver.find_element_by_xpath("//input[@id='verifyCode'").is_displayed():
+            if driver.find_element_by_xpath("//img[@id='loginVerifyImg']").is_displayed():
+                driver.maximize_window()
+                #不可用，图片请求一次会变化一次
+                # s = requests.session()
+                # html = s.get(driver.find_element_by_xpath("//img[@id='loginVerifyImg']").get_attribute('src')).content
+                # f = open('verifyCode.jpg', 'wb')
+                # f.write(html)
+                # f.close()
+
+
+                element = driver.find_element_by_id('loginVerifyImg')
+                driver.save_screenshot('img1.jpg')
+                location = element.location
+                size = element.size
+                im = Image.open('img1.jpg')
+                left = location['x'] + fram_rect['x']
+                top = location['y'] + fram_rect['y']
+                right = location['x']  + fram_rect['x'] + size['width']
+                bottom = location['y']  + fram_rect['y'] + size['height']
+
+                box = (left, top, right, bottom)
+                im.crop(box).save('img_crop.jpg')
+
                 print("输入验证码")
                 self.logger.error(u'登录失败，输入验证码' + user)
         except Exception, e:
+            print "aaa"
+            print traceback.print_exc()
             print("登录成功")
-
-
 
         time.sleep(2)
         driver.find_element_by_xpath("//input[@id='login1']").click()
@@ -177,7 +205,7 @@ class TransferAccounts(object):
         #通话详单
         detail_bill = 'http://iservice.10010.com/e3/query/call_dan.html'
         driver.get(detail_bill)
-        self.waiter_fordisplayed(driver, 'center_loadingGif')
+        self.waiter_not_displayed(driver, 'center_loadingGif')
         self.logger.info(u'跳转通话详情成功' + user)
 
         call_dan, callsms = self.get_call_dan(driver, user)
@@ -187,7 +215,13 @@ class TransferAccounts(object):
 
         driver.quit()
 
-    def waiter_fordisplayed(self, browser, element):
+    def waiter_not_displayed(self, browser, element):
+        """
+        等待元素隐藏
+        :param browser:
+        :param element:
+        :return:
+        """
         count = 0
         while(True):
             count = count + 1
@@ -204,6 +238,12 @@ class TransferAccounts(object):
         return True
 
     def waiter_displayed(self, browser, element):
+        """
+        等待元素展示
+        :param browser:
+        :param element:
+        :return:
+        """
         count = 0
         while(True):
             count = count + 1
@@ -234,9 +274,9 @@ class TransferAccounts(object):
         call_sms = []
         #通话详单
         for item in call_dan_maths:
-            self.waiter_fordisplayed(driver, 'center_loadingBg')
+            self.waiter_not_displayed(driver, 'center_loadingBg')
             driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
-            self.waiter_fordisplayed(driver, 'center_loadingBg')
+            self.waiter_not_displayed(driver, 'center_loadingBg')
             self.logger.info(item + u'月，通话详单：记录页面加载完成')
 
             while(True):
@@ -262,7 +302,7 @@ class TransferAccounts(object):
         for item in call_dan_maths:
             driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
             time.sleep(1)
-            self.waiter_fordisplayed(driver, 'center_loadingBg')
+            self.waiter_not_displayed(driver, 'center_loadingBg')
             self.logger.info(item + u'月，短信彩信:记录页面加载完成')
 
             while(True):
@@ -339,7 +379,7 @@ class TransferAccounts(object):
         time.sleep(2)
         history_list = 'http://iservice.10010.com/e3/query/history_list_ctrl.html?menuId=000100020001'
         driver.get(history_list)
-        # self.waiter_fordisplayed(driver, 'center_loadingGif')
+        # self.waiter_not_displayed(driver, 'center_loadingGif')
         # while(True):
         #     try:
         #         ui.WebDriverWait(driver, 1).until(lambda driver : not driver.find_element_by_id('center_loadingGif').is_displayed())
@@ -361,7 +401,7 @@ class TransferAccounts(object):
         history_host = []
         for item in call_maths:
             driver.find_element_by_xpath('//li[@value="' + item + '"]').click()
-            self.waiter_fordisplayed(driver, 'center_loadingGif')
+            self.waiter_not_displayed(driver, 'center_loadingGif')
             call_math = soup.find('ul', id='score_list_ul').find('li', class_='on').text
             call_pay = soup.find('div', id='historylistContext').find('td', class_='bg fn', style=None).text
             host = {}
