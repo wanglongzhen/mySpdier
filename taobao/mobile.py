@@ -78,7 +78,7 @@ class TransferAccounts(object):
         login_url = 'https://login.10086.cn/login.html'
         # login_url = 'https://login.10086.cn/html/login/login.html?channelID=12002&backUrl=http%3A%2F%2Fshop.10086.cn%2Fmall_290_290.html%3Fforcelogin%3D1'
         # login_url = 'https://www.10086.cn'
-        self.login_mobile(login_url, "13644411909", "020047")
+        self.login_mobile(login_url, "15802409681", "978672")
 
 
 
@@ -154,7 +154,16 @@ class TransferAccounts(object):
 
     def get_call_detail(self, user, passwd):
         """
-        获取用户半年通话详单
+        获取用户的半年通话详单
+        :param user:
+        :param passwd:
+        :return:
+        """
+        self.trigger_cll_detail_sms(user, passwd)
+
+    def trigger_call_detail_sms(self, user, passwd):
+        """
+        触发用户详单的短信验证
         :return:
         """
 
@@ -210,23 +219,27 @@ class TransferAccounts(object):
                     self.driver.find_element_by_id('vec_servpasswd').send_keys(passwd)
                     time.sleep(1)
 
-
-                    self.driver.find_element_by_id('stc-send-sms').click()
-                    time.sleep(2)
-                    #处理弹出的模态对话框
-                    try:
-                        alert = self.driver.switch_to.alert
-                        alert.accept()
-                    except Exception, e:
-                        print e
-
-                    cookies_str = json.dumps(self.driver.get_cookies())
-                    self.logger.info(u'移动->查询详单->点击获取查询详单的短信验证码' + cookies_str)
-
-
                     aa = self.driver.find_element_by_id('stc-jf-sms-count').text
 
                     while(True):
+                        time.sleep(40)
+                        for cookie in self.driver.get_cookies():
+                            if cookie['name'] == 'ss':
+                                tt = cookie['value']
+                                linux_time = long(tt) / 1000
+
+                        self.driver.find_element_by_id('stc-send-sms').click()
+                        time.sleep(2)
+                        #处理弹出的模态对话框
+                        try:
+                            alert = self.driver.switch_to.alert
+                            alert.accept()
+                        except Exception, e:
+                            print e
+
+                        cookies_str = json.dumps(self.driver.get_cookies())
+                        self.logger.info(u'移动->查询详单->点击获取查询详单的短信验证码' + cookies_str)
+
                         stc_sms_id = raw_input("please input image code:")
                         self.logger.info(u'移动->查询详单->输入详单查询短信随机码')
 
@@ -241,7 +254,9 @@ class TransferAccounts(object):
                         except Exception, e:
                             print("dialog,没有被移除")
                             err_msg = self.driver.find_element_by_xpath('//span[contains(text(), "认证失败")]').text
-                            self.driver.find_element_by_id('stc-send-sms').click()
+                            wait = WebDriverWait(self.driver, 60)
+                            element = wait.until(EC.element_to_be_clickable((By.ID, 'stc-send-sms')))
+
                             self.logger.info(u'移动->查询详单->详单查询，登录认证失败，重新触发')
                             print e
                             continue
@@ -260,9 +275,6 @@ class TransferAccounts(object):
                     pass
             else:
                 self.logger.info(u'移动，查询详单,开始爬取详单')
-
-            #test
-            li.click()
 
 
         pass
