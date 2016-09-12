@@ -159,7 +159,16 @@ class TransferAccounts(object):
         :param passwd:
         :return:
         """
-        self.trigger_cll_detail_sms(user, passwd)
+        self.trigger_call_detail_sms(user, passwd)
+
+    def get_call_datail_from_month(self, user, passwd):
+        """
+        怕取月份的数据
+        :param user:
+        :param passwd:
+        :return:
+        """
+        pass
 
     def trigger_call_detail_sms(self, user, passwd):
         """
@@ -261,6 +270,28 @@ class TransferAccounts(object):
                             print e
                             continue
 
+                        #取数据
+                        while (True):
+                            try:
+                                soup = bs(self.driver.page_source)
+                                call_list = []
+                                self.get_call_detail(self.driver.page_source, call_list)
+
+                                self.logger.info(item + u'月，通话详单：当前页的数据抓取完成')
+                                self.logger.info(item + u'月，通话详单：当前页码' + self.driver.find_element_by_id(
+                                    'select_op').find_element_by_xpath('//option[@selected="selected"]').text)
+
+                                self.waiter_displayed(self.driver, 'callDetailContent')
+                                next_page_element = self.driver.find_element_by_xpath(
+                                    '//div[@id="page-demo"]//[a[@class="next"]')
+                                next_page_element.click()
+                                self.waiter_displayed(self.driver, 'callDetailContent')
+                                self.logger.info(item + u'月，通话详单：下一页数据加载完成')
+                            except Exception, e:
+                                self.logger.info(item + u'月，通话详单：没有找到下一页')
+                                break
+
+
                     self.logger.info(u'移动->查询详单->详单查询，点击认证登录')
 
                     self.logger.info(u'移动，查询详单,触发再次登录验证对话框')
@@ -278,6 +309,27 @@ class TransferAccounts(object):
 
 
         pass
+    def get_call_detail(self, page_source, call_list):
+        """
+        获取记录中每条记录
+        :param page_source:
+        :param call_list:
+        :return:
+        """
+        soup = bs(self.driver.page_source)
+        call_list_tag = [item for item in soup.find('table', calss_='tmpl-data').find('tbody').find_all('tr')]
+        call_list = []
+        call_detail_list = {}
+        for call in call_list_tag:
+            call_detail = [item.text for item in call.find_all('td')]
+            call_detail_list['call_time'] = call_list[0]
+            call_detail_list['call_type'] = call_list[2]
+            call_detail_list['receive_phone'] = call_list[3]
+            call_detail_list['trade_addr'] = call_list[1]
+            call_detail_list['trade_time'] = call_list[4]
+            call_detail_list['trade_type'] = call_list[5]
+            self.logger.info(u'下载通话详单 ' + str(call_detail_list))
+            call_list.append(call_detail_list)
 
     def waiter_for_displayed_by_xpath(self, browser, regex):
         count = 0
