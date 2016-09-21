@@ -25,9 +25,12 @@ import ConfigParser
 import MySQLdb
 import json
 
+from union import Union
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+
+import requests
 
 import traceback
 
@@ -35,12 +38,16 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 
-
-class TransferAccounts(object):
-    def __init__(self, username = '13720257610', passwd = '883515'):
+class TransferAccounts(Union):
+    def __init__(self, username = '15802409681', passwd = '978672'):
         self.headers = {
             'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36'
         }
+
+        Union.__init__(self, username)
+
+        self.task_id = Union.get_task_no(self, username)
+        self.phone_num = username
 
         #数据库连接
         # sql_pool = self.sql_connect()
@@ -63,13 +70,15 @@ class TransferAccounts(object):
             3: u"未知",
         }
 
-        self.logger = comm_log.CommLog(1)
+        self.logger = comm_log.CommLog(username)
 
         # self.driver = webdriver.Firefox()
         # self.driver = webdriver.PhantomJS()
 
         self.driver = webdriver.Chrome()
         self.driver.maximize_window()
+
+        self.ses = requests.session()
         # self.driver.delete_all_cookies()
 
         #selenium 登录
@@ -79,7 +88,12 @@ class TransferAccounts(object):
         # login_url = 'https://login.10086.cn/html/login/login.html?channelID=12002&backUrl=http%3A%2F%2Fshop.10086.cn%2Fmall_290_290.html%3Fforcelogin%3D1'
         login_url = 'https://login.10086.cn/login.html?channelID=12003&backUrl=http://shop.10086.cn/i/'
         # login_url = 'https://www.10086.cn'
-        self.login_mobile(login_url, "13649258904", "728672")
+        # self.login_mobile(login_url, "13649258904", "728672")
+        # self.login_mobile(login_url, "13605394093", "135871")
+        self.login_mobile(login_url, "15802409681", "978672")
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        Union.__exit__(self. exc_type, exc_val, exc_tb)
 
 
 
@@ -91,20 +105,6 @@ class TransferAccounts(object):
         :param passwd:
         :return:
         """
-
-        #鼠标移动到登录入口
-        # self.driver.get(login_url)
-        #
-        # ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('dropdownMenu2')).perform()
-        # self.logger.info(u'鼠标移动到登录坐标附近')
-        # ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('loginYDSC')).perform()
-        # self.logger.info(u'鼠标移动到登录网上商城')
-        #
-        # self.waiter_fordisplayed(self.driver, 'loginYDSC')
-        #
-        # self.driver.find_element_by_id('loginYDSC').click()
-        # self.logger.info(u'点击移动商城入口，登录移动商城' + user)
-
 
         self.driver.get(login_url)
         self.logger.info(u'登录移动,用户名： ' + user + u'， 密码： ')
@@ -149,31 +149,319 @@ class TransferAccounts(object):
 
         self.logger.info(u'登录移动,完成登录，用户名： ' + user + u'， 密码： ')
 
+        #跳转到通话详情菜单
+        self.translate_to_call_detail_btn(user, passwd)
+
         #获取半年通话详单
         time.sleep(5)
-        self.get_call_detail(user, passwd)
+        self.get_info_detail(user, passwd)
 
-    def get_call_detail(self, user, passwd):
+    def get_info_detail(self, user, passwd):
         """
         获取用户的半年通话详单
         :param user:
         :param passwd:
         :return:
         """
-        self.trigger_call_detail_sms(user, passwd)
 
-    def get_call_detail_from_month(self, li, page_source, call_list):
+        #通话记录
+        call_list = self.get_call_detail(user, passwd)
+
+        #获取短信
+        sms_list = self.get_sms_detail(user, passwd)
+
+        #取账单数据
+        bill_list = self.get_bill_detail(user, passwd)
+
+        #取个人数据
+        user_info = self.get_user_info(user, passwd)
+
+        user_info['billData'] = bill_list
+        # user_info['msgData'] = call_list
+        # user_info['telData'] = sms_list
+
+
+        Union.save_basic(self, self.task_id, self.phone_num, [user_info])
+        Union.save_bill(self, self.task_id, self.phone_num, bill_list)
+        Union.save_calls(self, self.task_id, self.phone_num, call_list)
+        Union.save_sms(self, self.task_id, self.phone_num, sms_list)
+
+        self.driver.quit()
+
+
+
+    def get_bill_detail(self, user, passwd):
+        """
+        获取半年账单数据
+        :param user:
+        :param passwd:
+        :return:
+        """
+
+        bill_data = []
+
+        #自建request请求数据
+        self.ses = requests.Session()
+        for cookie in self.driver.get_cookies():
+            self.ses.cookies.set(cookie['name'], cookie['value'])
+            self.logger.info(u'获取半年账单数据，设置请求前的cookie。 ' + cookie['name'] + ": " + cookie['value'])
+
+        self.bill_url = 'http://shop.10086.cn/i/v1/fee/billinfo/' + user + '?_='
+        url = self.bill_url + self.get_timestamp()
+        self.logger.info(u'发送半年账单的请求，url : ' + url)
+        try:
+            response = self.ses.get(url)
+        except Exception, e:
+            self.logger.info(u'发送半年账单的请求，出现异常，url : ' + url)
+            self.track_back_err_print(sys.exc_info())
+
+        try:
+            data = response.content
+            json_data = json.loads(data)
+
+            if json_data['retCode'] == '000000':
+                self.logger.info(u'请求账单数据成功')
+            else:
+                self.logger.info(u'请求账单数据失败', + json_data['retMsg'])
+
+            for month_item in json_data['data']:
+                month_bill_data = {}
+                month_bill_data['month'] = month_item['billMonth']
+                month_bill_data['call_pay'] = month_item['billFee']
+                bill_data.append(month_bill_data)
+                self.logger.info(u'账单数据 ' + str(month_bill_data))
+        except Exception, e:
+            pass
+
+        return bill_data
+
+
+    def get_user_info(self, user, passwd):
+        """
+        获取用户的个人信息
+        :param user:
+        :param passwd:
+        :return:
+        """
+
+        user_info = {}
+        user_info['phone'] = user
+
+        #获取余额
+        self.real_url = 'http://shop.10086.cn/i/v1/fee/real/' + user + '?_='
+        url = self.real_url + self.get_timestamp()
+        self.logger.info(u'发送余额的请求，url : ' + url)
+        try:
+            response = self.ses.get(url)
+            data = response.content
+            json_data = json.loads(data)
+
+            if json_data['retCode'] == '000000':
+                self.logger.info(u'请求余额数据成功')
+            else:
+                self.logger.info(u'请求余额数据失败', + json_data['retMsg'])
+            user_info['phone_remain'] = json_data['data']['curFee']
+
+        except Exception, e:
+            self.logger.info(u'实时话费查询接口的请求，出现异常，url : ' + url)
+            self.track_back_err_print(sys.exc_info())
+
+
+        self.personal_info_url = 'http://shop.10086.cn/i/v1/cust/info/' + user + '?_='
+
+        url = self.personal_info_url + self.get_timestamp()
+        self.logger.info(u'发送个人信息的请求，url : ' + url)
+        try:
+            response = self.ses.get(url)
+            if json_data['retCode'] == '000000':
+                self.logger.info(u'请求余额数据成功')
+            else:
+                self.logger.info(u'请求余额数据失败', + json_data['retMsg'])
+
+            data = response.content
+            json_data = json.loads(data)
+
+            user_info['real_name'] = json_data['data']['name']
+            user_info['task_no'] = self.task_id
+            user_info['user_source'] = u'移动'
+            user_info['addr'] = json_data['data']['address']
+            user_info['id_card'] = ''
+
+        except Exception, e:
+            self.logger.info(u'发送个人信息的请求，出现异常，url : ' + url)
+            self.track_back_err_print(sys.exc_info())
+
+        self.logger.info(u'个人信息数据 ' + str(user_info))
+        return user_info
+
+    def save_data_2_database(self, data):
+        """
+
+        :param data:
+        :return:
+        """
+
+    def get_timestamp(self):
+        """
+        获取时间戳
+        :return: 一个时间戳
+        """
+        return str(time.time()).replace(".", "0")
+
+    def get_sms_detail(self, user, passwd):
+
+        try:
+            wait = WebDriverWait(self.driver, 10)
+            element = wait.until(EC.element_to_be_clickable((By.XPATH, '//li[@eventcode="UCenter_billdetailqry_type_DCXD"]')))
+
+            self.driver.find_element_by_xpath('//li[@eventcode="UCenter_billdetailqry_type_DCXD"]').click()
+            self.logger.info(u'移动，登录后，点击短信详单tab页，查询用户短信详单')
+        except Exception, e:
+            pass
+
+        sms_list = []
+        for li in self.driver.find_elements_by_xpath('//ul[@id="month-data"]//li[starts-with(@id, "month")]'):
+            self.logger.info(u'移动，查询短信详单,点击' + li.text)
+
+            li.click()
+            time.sleep(2)
+
+            if self.dealwith_trigger_sms(user, passwd) == True:
+                self.logger.info(u'移动，查询详单,开始爬取短信详单，' + li.text)
+            else:
+                self.logger.info(u'移动，查询详单,短信验证失败，触发下一个月数据点击' + li.text)
+                continue
+
+            self.get_sms_detail_from_month(li, self.driver.page_source, sms_list)
+
+        return sms_list
+
+
+    def get_sms_detail_from_month(self, li, page_source, sms_list):
+        """
+        按月抓取短信详单
+        :param li:
+        :param page_source:
+        :param sms_list:
+        :return:
+        """
+        try:
+            element = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//a[@class="gs-page on"]')))
+        except Exception, e:
+            self.logger.error(u'加载月份数据失败')
+            self.track_back_err_print(sys.exc_info())
+            return False
+
+        while (True):
+            try:
+                self.get_sms_detail_from_month_sub_page(page_source, sms_list)
+
+                self.logger.info(li.text + u'月，短信详单：当前页的数据抓取完成')
+                self.logger.info(li.text + u'月，短信详单：当前页码' + self.driver.find_element_by_id(
+                    'page-demo').find_element_by_xpath('//a[@class="gs-page on"]').text)
+
+                if EC.element_to_be_clickable((By.XPATH, '//div[@id="page-demo"]//a[@class="next"]')):
+                    m = re.match('.*?(\d+)/(\d+).*', self.driver.find_element_by_id('notes1').text)
+                    if m:
+                        curr_page = long(m.group(1))
+                        total_page = long(m.group(2))
+                        if curr_page == total_page:
+                            print(u'到尾页')
+                            self.logger.info(li.text + u'月, 短信详单，已经到最后一页')
+                            break
+                        else:
+                            self.driver.find_element_by_xpath(
+                                '//div[@id="page-demo"]//a[@class="next"]').click()
+                            self.logger.info(li.text + u'月, 短信详单，加载下一页')
+
+                            if self.wait_for_data_ready() == True:
+                                self.logger.info(li.text + u'月, 短信详单，加载下一页数据完成')
+                            else:
+                                self.logger.info(li.text + u'月, 短信详单，加载下一页数据失败，加载图片一直存在')
+
+                    else:
+                        print(u'没有匹配')
+                        self.logger.info(li.text + u'月, 短信详单，正则查找当前页和总页数出错，没有匹配到结果')
+
+                else:
+                    self.logger.info(li.text + u'月, //div[@id="page-demo"]//a[@class="next"] 不能点击')
+                    break
+
+                self.logger.info(li.text + u'月，短信详单：下一页数据加载完成')
+            except Exception, e:
+                print e
+                traceback.print_exc()
+
+                self.logger.info(li.text + u'月，短信详单：没有找到下一页')
+                break
+
+    def get_sms_detail_from_month_sub_page(self, page_source, sms_list):
+        """
+        获取记录中每条记录
+        :param page_source:
+        :param sms_list:
+        :return:
+        """
+        soup = bs(page_source)
+        call_list_tag = [item for item in soup.find('table', id='tmpl-data').find('tbody').find_all('tr')]
+
+        try:
+            for call in call_list_tag:
+                sms_detail_list = {}
+                call_detail = [item.text for item in call.find_all('td')]
+                sms_detail_list['send_time'] = call_detail[0]
+                sms_detail_list['trade_way'] = call_detail[3]
+                sms_detail_list['receive_phone'] = call_detail[2]
+                self.logger.info(u'下载短信详单 ' + str(sms_detail_list))
+                sms_list.append(sms_detail_list)
+        except Exception, e:
+            pass
+
+
+    def wait_for_data_ready(self):
+        """
+        等待table中的数据加载完毕
+        :return:
+        """
+        try:
+            # 加载图片存在
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                time.sleep(2)
+
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                time.sleep(5)
+            # 10s之后还未加载，过滤掉当前月份数据
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                self.logger.info(u'移动->查询详单，加载图片一直存在，加载失败')
+                return False
+        except Exception, e:
+            pass
+
+        return True
+
+
+    def get_call_detail_from_month(self, li, call_list):
         """
 
         :param page_source:
         :param call_list:
         :return:
         """
+        try:
+            element = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//a[@class="gs-page on"]')))
+        except Exception, e:
+            self.logger.error(u'加载月份数据失败')
+            self.track_back_err_print(sys.exc_info())
+            return False
 
         while (True):
             try:
-                call_list = []
-                self.get_call_detail_from_month_sub_page(page_source, call_list)
+                self.get_call_detail_from_month_sub_page(self.driver.page_source, call_list)
+
+                if len(call_list) == 0:
+                    self.logger.info(li.text + u'月，通话详单：当前页的记录为0')
 
                 self.logger.info(li.text + u'月，通话详单：当前页的数据抓取完成')
                 self.logger.info(li.text + u'月，通话详单：当前页码' + self.driver.find_element_by_id(
@@ -181,32 +469,34 @@ class TransferAccounts(object):
 
                 if EC.element_to_be_clickable((By.XPATH, '//div[@id="page-demo"]//a[@class="next"]')):
 
-                    m = re.match('.*(\d+)/(\d+).*', self.driver.find_element_by_id('notes1').text)
+                    m = re.match('.*?(\d+)/(\d+).*', self.driver.find_element_by_id('notes1').text)
                     if m:
                         curr_page = long(m.group(1))
                         total_page = long(m.group(2))
                         if curr_page == total_page:
-                            print('到尾页')
                             self.logger.info(li.text + u'月, 通话详单，已经到最后一页')
                             break
                         else:
                             self.driver.find_element_by_xpath(
                                 '//div[@id="page-demo"]//a[@class="next"]').click()
                             self.logger.info(li.text + u'月, 通话详单，加载下一页')
+                            if self.wait_for_data_ready() == True:
+                                self.logger.info(li.text + u'月, 通话详单，加载下一页数据完成')
+                            else:
+                                self.logger.info(li.text + u'月, 通话详单，加载下一页数据失败，加载图片一直存在')
+
                     else:
-                        print(u'没有匹配')
                         self.logger.info(li.text + u'月, 通话详单，正则查找当前页和总页数出错，没有匹配到结果')
 
                 else:
                     self.logger.info(li.text + u'月, //div[@id="page-demo"]//a[@class="next"] 不能点击')
                     break
-
-                self.logger.info(li.text + u'月，通话详单：下一页数据加载完成')
             except Exception, e:
                 print e
                 traceback.print_exc()
 
                 self.logger.info(li.text + u'月，通话详单：没有找到下一页')
+                self.track_back_err_print(sys.exc_info())
                 break
 
     def get_call_detail_from_month_sub_page(self, page_source, call_list):
@@ -218,10 +508,10 @@ class TransferAccounts(object):
         """
         soup = bs(page_source)
         call_list_tag = [item for item in soup.find('table', id='tmpl-data').find('tbody').find_all('tr')]
-        call_list = []
-        call_detail_list = {}
+
         try:
             for call in call_list_tag:
+                call_detail_list = {}
                 call_detail = [item.text for item in call.find_all('td')]
                 call_detail_list['call_time'] = call_detail[0]
                 call_detail_list['call_type'] = call_detail[2]
@@ -234,127 +524,211 @@ class TransferAccounts(object):
         except Exception, e:
             pass
 
+        return call_list
 
     def trigger_call_detail_sms(self, user, passwd):
         """
-        触发用户详单的短信验证
+        触发用户箱单的短信验证，并处理验证
+        :param user:
+        :param passwd:
         :return:
         """
 
-        #触发第二次验证码
+        try:
+            # 加载图片存在
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                time.sleep(10)
+            # 10s之后还未加载，过滤掉当前月份数据
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                self.logger.info(u'移动->查询详单，加载图片一直存在，加载失败' + user)
+                return False
+        except Exception, e:
+            pass
+
+        #判断短信验证码的对话框是否已经展现
+        try:
+            element = WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.ID, 'stc-send-sms')))
+            self.logger.info(u'移动->查询详单，发现短信验证码对话框' + user)
+        except Exception, e:
+            # self.logger.info(u'移动->查询详单，没有发现短信验证码对话框， ' + sys.exc_info()[0] + ": " + sys.exc_info()[1])
+            self.track_back_err_print(sys.exc_info())
+            print e
+            traceback.print_exc()
+            return True
+
+        # finally:
+        #     self.logger.info(u'移动->查询详单，没有发现短信验证对话框，已经验证成功' + user)
+        #     return True
+
+        if self.driver.find_element_by_xpath('//div[starts-with(@id, "content")]').is_displayed() \
+                or self.driver.find_element_by_id('stc-send-sms').is_displayed():
+            ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('vec_servpasswd')).perform()
+            self.logger.info(u'移动->查询详单->移动到服务密码输入框')
+
+            self.driver.find_element_by_id('vec_servpasswd').clear()
+            self.driver.find_element_by_id('vec_servpasswd').send_keys(passwd)
+            time.sleep(1)
+
+            aa = self.driver.find_element_by_id('stc-jf-sms-count').text
+
+            # 触发二次验证码
+            time.sleep(40)
+            self.logger.info(u'移动->查询详单->等待40s，等待第二次触发短信验证码' + user)
+
+            # for cookie in self.driver.get_cookies():
+            #     if cookie['name'] == 'ss':
+            #         tt = cookie['value']
+            #         linux_time = long(tt) / 1000
+
+            self.driver.find_element_by_id('stc-send-sms').click()
+            time.sleep(2)
+
+            # 处理弹出的模态对话框
+            try:
+                alert = self.driver.switch_to.alert
+                alert.accept()
+            except Exception, e:
+                print e
+
+            cookies_str = json.dumps(self.driver.get_cookies())
+            self.logger.info(u'移动->查询详单->点击获取查询详单的短信验证码' + cookies_str)
+
+            stc_sms_id = raw_input("please input image code:")
+            self.logger.info(u'移动->查询详单->输入详单查询短信随机码' + stc_sms_id)
+
+            self.driver.find_element_by_id('vec_smspasswd').send_keys(stc_sms_id)
+
+            self.driver.find_element_by_id('vecbtn').click()
+
+            # 等待页面加载通话记录完成
+            self.logger.info(u'移动，查询详单,触发再次登录验证对话框')
+
+        return True
+
+    def translate_to_call_detail_btn(self, user, passwd):
+        """
+        登录后，跳转到用户通话详情页菜单
+
+
+        :param user:
+        :param passwd:
+        :return:
+        """
+
         try:
 
             wait = WebDriverWait(self.driver, 10)
             wait.until(EC.element_to_be_clickable((By.XPATH, '//a[contains(text(), "我的账户")]')))
         except Exception, e:
             print e
+            self.logger.info(u'移动，详单查询，点击我的账户异常， 没有加载我的账户btn')
+            return False
 
-        for item in self.driver.find_elements_by_xpath('//ul[@class="list-c1 js_list_active"]'):
-            if u'我的账户' in item.text:
-                item.click()
-                self.logger.info(u'移动，详单查询，点击' + item.text)
-                print('点击我的账户')
-            else:
-                self.logger.info(u'移动，详单查询，跳转过程中...' + item.text)
-                print('点解' + item.text)
+        try:
+            for item in self.driver.find_elements_by_xpath('//ul[@class="list-c1 js_list_active"]'):
+                if u'我的账户' in item.text:
+                    item.click()
+                    self.logger.info(u'移动，详单查询，点击' + item.text)
+                    print('点击我的账户')
+                else:
+                    self.logger.info(u'移动，详单查询，跳转过程中...' + item.text)
+                    print('点击' + item.text)
 
-        wait = WebDriverWait(self.driver, 10)
-        wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@alis="billdetailqry"]')))
-        self.driver.find_element_by_xpath('//a[@alis="billdetailqry"]').click()
+            wait = WebDriverWait(self.driver, 10)
+            wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@alis="billdetailqry"]')))
+            self.driver.find_element_by_xpath('//a[@alis="billdetailqry"]').click()
 
-        self.logger.info(u'移动，详单查询，点击详单查询')
+            self.logger.info(u'移动，详单查询，点击详单查询')
+        except Exception, e:
+            self.logger.info(u'移动，详单查询，点击详单查询失败')
+            self.track_back_err_print(sys.exc_info())
 
+
+        return True
+
+
+
+    def get_call_detail(self, user, passwd):
+        """
+        触发用户详单的短信验证
+        :return:
+        """
+
+        #触发第二次验证码
         wait = WebDriverWait(self.driver, 10)
         element = wait.until(EC.element_to_be_clickable((By.XPATH, '//li[@eventcode="UCenter_billdetailqry_type_THXD"]')))
 
         self.driver.find_element_by_xpath('//li[@eventcode="UCenter_billdetailqry_type_THXD"]').click()
         self.logger.info(u'移动，登录后，点击通话详单tab页，查询用户通话详单')
 
+        call_list = []
         for li in self.driver.find_elements_by_xpath('//ul[@id="month-data"]//li[starts-with(@id, "month")]'):
-            try:
-                alert = self.driver.switch_to.alert
-                alert.accept()
-            except Exception, e:
-                print("not has alert")
-                pass
-
             self.logger.info(u'移动，查询详单,点击' + li.text)
             li.click()
             time.sleep(2)
 
-            try:
-                if self.driver.find_element_by_xpath('//div[starts-with(@id, "content")]').is_displayed() \
-                            or self.driver.find_element_by_id('stc-send-sms').is_displayed():
-                    ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('vec_servpasswd')).perform()
-                    self.logger.info(u'移动->查询详单->移动到服务密码输入框')
-
-                    self.driver.find_element_by_id('vec_servpasswd').clear()
-                    self.driver.find_element_by_id('vec_servpasswd').send_keys(passwd)
-                    time.sleep(1)
-
-                    aa = self.driver.find_element_by_id('stc-jf-sms-count').text
-
-                    #触发二次验证码
-                    time.sleep(40)
-                    for cookie in self.driver.get_cookies():
-                        if cookie['name'] == 'ss':
-                            tt = cookie['value']
-                            linux_time = long(tt) / 1000
-
-                    self.driver.find_element_by_id('stc-send-sms').click()
-                    time.sleep(2)
-
-                    #处理弹出的模态对话框
-                    try:
-                        alert = self.driver.switch_to.alert
-                        alert.accept()
-                    except Exception, e:
-                        print e
-
-                    cookies_str = json.dumps(self.driver.get_cookies())
-                    self.logger.info(u'移动->查询详单->点击获取查询详单的短信验证码' + cookies_str)
-
-                    stc_sms_id = raw_input("please input image code:")
-                    self.logger.info(u'移动->查询详单->输入详单查询短信随机码')
-
-                    self.driver.find_element_by_id('vec_smspasswd').send_keys(stc_sms_id)
-
-                    self.driver.find_element_by_id('vecbtn').click()
-
-                    #处理弹出的dialog对话框
-                    # try:
-                    #     wait = WebDriverWait(self.driver, 10)
-                    #     wait.until(EC.staleness_of((By.XPATH, '//div[@i="dialog"]')))
-                    # except Exception, e:
-                    #     print("dialog,没有被移除")
-                    #     err_msg = self.driver.find_element_by_xpath('//span[contains(text(), "认证失败")]').text
-                    #     wait = WebDriverWait(self.driver, 60)
-                    #     element = wait.until(EC.element_to_be_clickable((By.ID, 'stc-send-sms')))
-                    #
-                    #     self.logger.info(u'移动->查询详单->详单查询，登录认证失败，重新触发')
-                    #     print e
-                    #     continue
-
-                    #等待页面加载通话记录完成
-                    self.logger.info(u'移动，查询详单,触发再次登录验证对话框')
-
-            except Exception, e:
-                print e
-
-                print traceback.print_exc()
-
-            try:
-                #等待数据加载完成
-                wait = WebDriverWait(self.driver, 10)
-                wait.until(EC.element_to_be_clickable((By.XPATH, '//table[@id="tmpl-data"]//thead')))
-            except Exception, e:
-                print e
-                traceback.print_exc()
-
-            self.logger.info(u'移动，查询详单,开始爬取详单，' + li.text)
+            if self.dealwith_trigger_sms(user, passwd) == True:
+                pass
+                self.logger.info(u'移动，查询详单,开始爬取详单，' + li.text)
+            else:
+                self.logger.info(u'移动，查询详单,短信验证失败，触发下一个月数据点击' + li.text)
+                continue
 
             # 取数据
-            self.get_call_detail_from_month(li, self.driver.page_source, user)
+            self.get_call_detail_from_month(li, call_list)
+
+        return call_list
+
+    def dealwith_trigger_sms(self, user, passwd):
+        """
+        处理触发短信二次验证前后的一些操作
+        :param user:
+        :param passwd:
+        :return:
+        """
+
+        try:
+            self.trigger_call_detail_sms(user, passwd)
+            self.logger.info(u'登录移动，触发通话详单，验证成功' + user)
+        except Exception, e:
+            self.logger.info(u'登录移动，触发通话详单短信验证码失败' + user)
+            print e
+            print traceback.print_exc()
+
+        try:
+            # 加载图片存在
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                time.sleep(10)
+            # 10s之后还未加载，过滤掉当前月份数据
+            if self.driver.find_element_by_xpath('//img[@src="/i/nresource/image/loading.gif"]').is_displayed():
+                self.logger.info(u'移动->查询详单，加载图片一直存在，加载失败' + user)
+                return False
+        except Exception, e:
+            pass
+
+        try:
+            # 等待数据加载完成
+            wait = WebDriverWait(self.driver, 10)
+            wait.until(EC.element_to_be_clickable((By.XPATH, '//table[@id="tmpl-data"]//thead')))
+        except Exception, e:
+            print e
+            traceback.print_exc()
+
+        return True
+
+
+
+    def track_back_err_print(self, info):
+        """
+        格式化输出异常信息
+        :param info:
+        :return:
+        """
+        self.logger.info(info[1])
+        for file, lineno, function, text in traceback.extract_tb(info[2]):
+            self.logger.info(file+"line:" + str(lineno) + "in" + str(function))
+            self.logger.info(text)
 
 
     def waiter_for_displayed_by_xpath(self, browser, regex):
@@ -389,6 +763,8 @@ class TransferAccounts(object):
                 self.logger.error(u'元素没有展示' + element)
 
         return True
+
+
 
 
 def main():

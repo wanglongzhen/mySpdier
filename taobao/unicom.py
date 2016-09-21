@@ -24,17 +24,20 @@ import MySQLdb
 import traceback
 from PIL import Image
 
+from union import Union
+
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
-class TransferAccounts(object):
-    def __init__(self, username = '18513622865', passwd = '861357'):
+class TransferAccounts(Union):
+    def __init__(self, username = '18662726006', passwd = '526280'):
         self.headers = {
             'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36'
         }
+        Union.__init__(self, username)
 
-        #数据库连接
-        sql_pool = self.sql_connect()
+        self.task_id = Union.get_task_no(self, username)
+        self.phone_num = username
 
         #不同类型
         self.keyword_call_type = {
@@ -59,34 +62,13 @@ class TransferAccounts(object):
         login_url = 'http://www.10010.com/'
         self.login_unicom(login_url, username, passwd)
 
-    def sql_connect(self):
-        #database
-        cfg_filename = 'db.conf'
-        path_dirname = os.path.dirname(os.path.realpath(__file__))
-        cfg_path = path_dirname + "/" + cfg_filename
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        Union.__exit__(self. exc_type, exc_val, exc_tb)
 
-        conf = ConfigParser.ConfigParser()
-        conf.read(cfg_path)
-        print conf.sections()
-
-        host = conf.get('unicom', 'host')
-        user = conf.get('unicom', 'username')
-        passwd = conf.get('unicom', 'passwd')
-        database = conf.get('unicom', 'database')
-
-        try:
-            conn = MySQLdb.connect(host=host, user=user, passwd=passwd, db=database, charset="utf8")
-            # dbpool = PooledDB(MySQLdb, 2, host=host, user=user, passwd=passwd, db=database, port=3306, charset="utf8")
-        except Exception as e:
-            print u"数据库连接发生错误: " + str(e)
-            return None
-        else:
-            # print u"数据库连接成功"
-            return conn
 
     def login_unicom(self, login_url, user, passwd):
         # driver = webdriver.PhantomJS()
-        driver = webdriver.Firefox()
+        driver = webdriver.Chrome()
         driver.maximize_window()
 
         driver.delete_all_cookies()
@@ -100,7 +82,7 @@ class TransferAccounts(object):
             driver.get(url)
 
         frame = driver.find_element_by_xpath('//iframe[@class="login_iframe"]')
-        fram_rect = frame.rect
+        fram_rect = frame.location
         driver.switch_to.frame(frame)
 
         time.sleep(2)
@@ -123,7 +105,6 @@ class TransferAccounts(object):
                 # f = open('verifyCode.jpg', 'wb')
                 # f.write(html)
                 # f.close()
-
 
                 element = driver.find_element_by_id('loginVerifyImg')
                 driver.save_screenshot('img1.jpg')
@@ -168,12 +149,15 @@ class TransferAccounts(object):
                 print('没找到元素')
         self.logger.info(u'跳转我的联通页面成功' + user)
 
+        user_info = {}
 
         #抓我的交易信息
         soup = bs(driver.page_source)
         phone_remain = soup.find('div', id = 'balance').find('span', class_='c_orange fs_18').text
+        user_info['phone_remain'] = phone_remain
 
         # 拼接用户个人信息URL
+
         infoURL = soup.find('a', id='infomgrURL').get('href')
         joinURL = urlparse.urljoin(driver.current_url, infoURL)
         driver.get(joinURL)
@@ -194,6 +178,13 @@ class TransferAccounts(object):
             id_card = soup.find('p', id = 'psptno').text
             addr = soup.find('div', id = 'psptaddr').text
             usersource = '联通'
+
+            user_info['real_name'] = real_name
+            user_info['id_card'] = id_card
+            user_info['addr'] = addr
+            user_info['user_source'] = usersource
+            user_info['task_no'] = self.task_id
+
             self.logger.info(u'获取个人信息: realname: ' + real_name + u' idcard : ' + id_card + u' addr : ' + addr + u'usersource: ' + usersource)
         except Exception, e:
             self.logger.error(u'获取个人信息失败: ' + user + e)
@@ -211,7 +202,10 @@ class TransferAccounts(object):
         call_dan, callsms = self.get_call_dan(driver, user)
 
         #存数据到数据库中
-
+        Union.save_basic(self, self.task_id, self.phone_num, [user_info])
+        Union.save_bill(self, self.task_id, self.phone_num, ret)
+        Union.save_calls(self, self.task_id, self.phone_num, call_dan)
+        Union.save_sms(self, self.task_id, self.phone_num, callsms)
 
         driver.quit()
 
@@ -332,8 +326,9 @@ class TransferAccounts(object):
         """
         soup = bs(page_source)
         call_data = [call_map for call_map in soup.find('div', id='smsmmsResultTab').find('tbody').find_all('tr')]
-        host = {}
+
         for tr_data in call_data:
+            host = {}
             call_list = [re.sub('<(\S|\s)*>|\s|/+', '', item.text)  for item in tr_data.find_all('th')]
             if len(call_list) == 4:
                 host['send_time'] = call_list[0]
@@ -357,8 +352,9 @@ class TransferAccounts(object):
         """
         soup = bs(page_source)
         call_data = [call_map for call_map in soup.find('div', id='callDetailContent').find('tbody').find_all('tr')]
-        host = {}
+
         for tr_data in call_data:
+            host = {}
             call_list = [item.text for item in tr_data.find_all('th')]
             host['call_time'] = call_list[0]
             host['call_type'] = call_list[2]

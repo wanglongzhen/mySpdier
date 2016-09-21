@@ -16,9 +16,31 @@ import datetime
 import calendar
 import re
 import sys
+import ConfigParser
+import MySQLdb
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
+
+class GetConn(object):
+    """
+    获取数据库连接
+    """
+    def get_db_conn(self, cfg_page = 'db.conf'):
+        # 初始化配置文件
+        conf = ConfigParser.ConfigParser()
+        conf.read(cfg_page)
+        print conf.sections()
+
+        host = conf.get('unicom', 'host')
+        user = conf.get('unicom', 'username')
+        passwd = conf.get('unicom', 'passwd')
+        database = conf.get('unicom', 'database')
+        port = int(conf.get('unicom', 'port'))
+
+        conn = MySQLdb.connect(host=host, user=user, passwd = passwd, db=database, port = port, charset='utf8')
+
+        return conn
 
 
 class Union(object):
@@ -46,46 +68,25 @@ class Union(object):
             "Content-Type": r"application/x-www-form-urlencoded;charset=UTF-8"
         }
 
+        # headers = {'Accept': '*/*',
+        #            'Accept-Encoding': 'gzip, deflate, sdch',
+        #            'Accept-Language': 'en-US,en;q=0.8',
+        #            'Cache-Control': 'max-age=0',
+        #            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36'
+        #            }
+        #
+        # for key, value in enumerate(headers):
+        #     webdriver.DesiredCapabilities.PHANTOMJS['phantomjs.page.customHeaders.{}'.format(key)] = value
+
+        # service_args = [
+        #     '--proxy=127.0.0.1:9999',
+        #     '--proxy-type=socks5',
+        # ]
+        # driver = webdriver.PhantomJS(service_args=service_args)
+
         # 2.2 创建带上述头信息的会话
         self.ses = requests.Session()
         self.ses.headers = self.header
-
-        # 3. 相关网页
-        # 3.1 主页
-        self.home_url = "http://www.10010.com/"
-        # 3.2 登录页面
-        self.login_url = "https://uac.10010.com/portal/homeLogin"
-        # 3.3 登录认证页面 -- 存在需要替换的字符
-        self.login_url2 = ("https://uac.10010.com/portal/Service/" +
-                           "MallLogin?callback=jQuery1720029789068" +
-                           "503305316_{t1}&req_time={t2}&redirectURL" +
-                           "=http%3A%2F%2Fwww.10010.com&userName=" +
-                           "{number}&password={password}&pwdType=" +
-                           "01&productType=01&redirectType=" +
-                           "01&rememberMe=1&_={t3}")
-        # 3.4 通话记录下载地址 excel
-        self.call_url = "http://iservice.10010.com//e3/ToExcel.jsp?type=sound"
-        # 3.5 个人信息地址
-        self.per_info_url = "https://uac.10010.com/cust/infomgr/infomgrInit"
-        self.per_json = "https://uac.10010.com/cust/infomgr/anonymousInfoAJAX"
-
-        # 3.6 历史账单使用json返回值输出，不使用下载excel的方式
-
-        # 3.7 短信记录下载地址
-        self.sms_url = "http://iservice.10010.com/e3/ToExcel.jsp?type=sms3"
-
-        # 3.8 套餐使用余量查询
-        self.user_info = "https://uac.10010.com/cust/userinfo/userInfoInit"
-        self.user_json = "https://uac.10010.com/cust/userinfo/getBindnumInfo"
-
-        # 3.9 获取号码归属地
-        self.location_info = "http://iservice.10010.com/e3/static/life/callerLocationQuery?_="
-
-        # 3.10 获取套餐余量
-        self.package_info = "http://iservice.10010.com/e3/static/query/queryLeavePackageData?_={ts}&menuid=000100040001"
-
-        # 3.11 获取账户充值记录
-        self.money_info = "http://iservice.10010.com/e3/static/query/paymentRecord?_={ts}&menuid=000100010003"
 
         # 4. 格式化不同不类型的查询信息
         self.keyword_infos = {
@@ -94,6 +95,118 @@ class Union(object):
             "bill": u"历史账单信息",
         }
 
+    def get_task_no(self, phone_num):
+        """
+        根据手机号和当前的时间构造一个task_no
+        :param user:
+        :return:
+        """
+        task_no = str(phone_num) + "|" + self.get_timestamp()
+
+        return task_no
+
+
+    def save_bill(self, task_id, phone_num, data):
+        """
+        存账单信息
+        :param data:
+        :return:
+        """
+
+        table = "bill"
+        fields = ['month', 'call_pay']
+
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.logger.info(u'保存' + table + u'表失败')
+            self.track_back_err_print(sys.exc_info())
+
+
+    def save_calls(self, task_id, phone_num, data):
+        """
+        存通话信息
+        :param data:
+        :return:
+        """
+
+        table = 'calls'
+        fields = ['call_time', 'receive_phone', 'trade_addr', 'trade_type', 'trade_time', 'call_type']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.logger.info(u'保存' + table + u'表失败')
+            self.track_back_err_print(sys.exc_info())
+
+
+    def save_sms(self, task_id, phone_num, data):
+        """
+        存短信信息
+        :param data:
+        :return:
+        """
+
+        table = 'sms'
+        fields = ['send_time', 'receive_phone', 'trade_way']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.logger.info(u'保存' + table + u'表失败')
+            self.track_back_err_print(sys.exc_info())
+
+
+    def save_basic(self, task_id, phone_num, data):
+        """
+        存基本信息
+        :param data:
+        :return:
+        """
+
+        table = 'basic'
+        fields = ['real_name', 'user_source', 'addr', 'id_card', 'phone_remain']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.logger.info(u'保存' + table + u'表失败')
+            self.track_back_err_print(sys.exc_info())
+
+
+    def save_db(self, task_id, phone_num, table, fields, data):
+        """
+        根据关键词，将结果存入数据库中对应的表中
+        :param keyword: 关键词，比如: "basic"
+        :param result: [list]，需要存入数据库的内容
+        :return:
+        """
+        if len(data) == 0:
+            return
+
+        vs = "'{task_id}', '{mobile}', " + "%s, " * len(fields)
+        sql_ins = ("insert into {table} (task_id, mobile, " + ", ".join(fields) +
+                   ") values (" + vs[:-2] + ")")
+        sql_ins_format = sql_ins.format(table=table,
+                                        task_id=task_id,
+                                        mobile=phone_num)
+
+        param = [[result_slice[k] for k in fields] for result_slice in data]
+
+        get_conn = GetConn()
+        conn = get_conn.get_db_conn()
+        cursor = conn.cursor()
+
+        try:
+            cursor.executemany(sql_ins_format, param)
+        except Exception as e:
+            self.logger.error(u"无法写入数据库: " + str(e))
+            self.logger.error(sql_ins_format)
+        else:
+            conn.commit()
+            self.logger.info(u'写入数据成功' + table + u', sql : ' + sql_ins_format)
+        finally:
+            cursor.close()
+            conn.close()
+
+
     @staticmethod
     def get_timestamp():
         """
@@ -101,39 +214,6 @@ class Union(object):
         :return: 一个时间戳
         """
         return str(time.time()).replace(".", "0")
-
-    def check_if_login(self):
-        """
-        检查是否成功登录（同时也是获取各个页面的中间必要通信环节）
-        :return: True for success; False for not.
-        """
-        self.logger.info(u"验证是否是登录状态...")
-
-        checkin_url = "http://iservice.10010.com/e3/static/check/checklogin?_="
-        try:
-            res = self.ses.post(checkin_url + Union.get_timestamp())
-        except Exception as e:
-            self.logger.error(u"[1001] 无法发送获取登录状态的请求" + str(checkin_url))
-            self.logger.error(str(e))
-            return False, "0003"
-
-        try:
-            result = res.json().get("isLogin")
-        except Exception as e:
-            self.logger.error(u"[1002] check_login登录状态返回内容异常")
-            self.logger.error(str(e))
-            return False, "0001"
-
-        if result is None:
-            self.logger.error(u"[1002] check_login登录状态返回内容异常")
-            return False, "0001"
-
-        if result:
-            self.logger.info(u"成功登录联通官网")
-            return True, "0000"
-        else:
-            self.logger.warning(u"登录联通官网失败")
-            return False, "0003"
 
     @staticmethod
     def get_begin_end_date(bill_date):
