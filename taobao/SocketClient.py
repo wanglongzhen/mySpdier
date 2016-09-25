@@ -15,9 +15,12 @@ addr = (host, port)
 client = socket(AF_INET, SOCK_STREAM)
 client.connect(addr)
 while True:
-    data = raw_input()
+    # data = raw_input()
+    data = '{"method":"login","task_no":18115616158, "param": {"mobile_type":"mobile_type", "password":728672}}'
+
     if not data or data == 'exit':
         break
+    print data
     client.send('%s\r\n' % data)
     data = client.recv(bufsize)
     if not data:
