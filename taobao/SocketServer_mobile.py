@@ -11,6 +11,7 @@ import SocketServer
 from SocketServer import StreamRequestHandler as SRH
 from time import ctime
 from Spider import UnicomSpider
+from mobileSpider import MobileSpider
 
 
 import ConfigParser
@@ -41,18 +42,15 @@ class Servers(SRH):
         print 'got connection from ', self.client_address
         # self.wfile.write('connection %s:%s at %s succeed!' % (self.server.server_address[0], self.server.server_address[1], ctime()))
         mobile = None
-
         while True:
-            data = self.request.recv(1024)
-            if not data:
+            #业务逻辑
+            response = self.spider(mobile)
+            if response == True:
                 break
 
-            #业务逻辑
-            response = self.spider(data, mobile)
-            str_response = json.dumps(response)
-            self.request.send(str_response)
 
-    def spider(self, data, mobile):
+
+    def spider(self, mobile):
         """
         开始爬取
         :param data:
@@ -60,51 +58,61 @@ class Servers(SRH):
         :return:
         """
         response = {}
+        data = self.request.recv(1024)
+        if not data:
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = "传入数据为空"
+            str_response = json.dumps(response)
+            self.request.send(str_response)
+            return False
 
         json_data = self.json_value(data)
         if json_data == None:
             response['error_no'] = 2
             response['task_no'] = 0
             response['message'] = "传入数据格式不是json格式，解析失败"
-            response['timeout'] = 15
-            response['img_flag'] = 0
+            str_response = json.dumps(response)
+            self.request.send(str_response)
             return response
 
         if  json_data['method'] == 'login' and mobile == None:
-            # 1登录联通
+            # 1登录触发验证码
             print 'mobile is None login method'
-            mobile = UnicomSpider(json_data['task_no'], json_data['param']['password'])
+            mobile = MobileSpider(json_data['task_no'], json_data['param']['password'])
             ret, message = mobile.login()
             if ret == True:
                 response['error_no'] = 0
                 response['task_no'] = json_data['task_no']
                 response['message'] = message
-                response['timeout'] = 15
-                response['img_flag'] = 0
-
 
                 str_response = json.dumps(response)
                 self.request.send(str_response)
 
-                #2 登录后爬取数据
-                print 'mobile Spider detail info'
-                mobile.spider_detail()
+                #等待第一次验证码
+                sms_data = self.request.recv(1024)
+                if not data:
+                    return
+                json_sms_data = self.json_value(sms_data)
+                ret, message = mobile.login_first_sms(json_sms_data['param']['sms_pwd'])
+
+                str_response = json.dumps(response)
+                self.request.send(str_response)
+
+                #等待第二次短信验证码
+                sms_data = self.request.recv(1024)
+                if not data:
+                    return
+                json_sms_data = self.json_value(sms_data)
+                ret, message = mobile.login_sec_sms(json_sms_data['param']['sms_pwd'])
+
+                str_response = json.dumps(response)
+                self.request.send(str_response)
+
             else:
                 response['error_no'] = 1
                 response['task_no'] = json_data['task_no']
                 response['message'] = message
-                response['timeout'] = 15
-                response['img_flag'] = 0
-
-            return response
-
-        elif json_data['method']  == 'login' and mobile != None:
-            print 'mobile is not None login method'
-            response['error_no'] = 1
-            response['task_no'] = json_data['task_no']
-            response['message'] = "登录成功，正在下载中"
-            response['timeout'] = 15
-            response['img_flag'] = 0
 
             return response
 

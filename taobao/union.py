@@ -18,6 +18,7 @@ import re
 import sys
 import ConfigParser
 import MySQLdb
+import traceback
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -205,6 +206,17 @@ class Union(object):
         finally:
             cursor.close()
             conn.close()
+
+    def track_back_err_print(self, info):
+        """
+        格式化输出异常信息
+        :param info:
+        :return:
+        """
+        self.logger.info(info[1])
+        for file, lineno, function, text in traceback.extract_tb(info[2]):
+            self.logger.info(file+"line:" + str(lineno) + "in" + str(function))
+            self.logger.info(text)
 
 
     @staticmethod
