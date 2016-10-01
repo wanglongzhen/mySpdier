@@ -181,7 +181,8 @@ class UnicomSpider(Union):
             print e
             self.track_back_err_print(sys.exc_info())
 
-        #存数据到数据库中
+        #存数据到数据库中\
+        self.logger.info(u'保存用户的信息到数据库，开始' + self.phone_num)
         if len(user_info) > 0:
             Union.save_basic(self, self.task_id, self.phone_num, [user_info])
         if len(ret) > 0:
@@ -190,6 +191,8 @@ class UnicomSpider(Union):
             Union.save_calls(self, self.task_id, self.phone_num, call_dan)
         if len(callsms) > 0:
             Union.save_sms(self, self.task_id, self.phone_num, callsms)
+
+        self.logger.info(u'保存用户的信息到数据库，完成。 ' + self.phone_num)
 
         self.driver.quit()
 
