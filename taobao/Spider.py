@@ -333,7 +333,7 @@ class UnicomSpider(Union):
             elif len(call_list) == 5:
                 host['send_time'] = call_list[0]
                 host['trade_away'] = call_list[2]
-                host['receiver_phone'] = call_list[3]
+                host['receive_phone'] = call_list[3]
 
             self.logger.info(u'下载短信彩信详单 ' + str(host))
             call_sms.append(host)
@@ -389,7 +389,7 @@ class UnicomSpider(Union):
             call_math = soup.find('ul', id='score_list_ul').find('li', class_='on').text
             call_pay = soup.find('div', id='historylistContext').find('td', class_='bg fn', style=None).text
             host = {}
-            host['math'] = call_math
+            host['month'] = call_math
             host['call_pay'] = call_pay
             history_host.append(host)
             print item
