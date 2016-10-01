@@ -389,7 +389,7 @@ class UnicomSpider(Union):
             call_math = soup.find('ul', id='score_list_ul').find('li', class_='on').text
             call_pay = soup.find('div', id='historylistContext').find('td', class_='bg fn', style=None).text
             host = {}
-            host['math'] = call_math
+            host['month'] = call_math
             host['call_pay'] = call_pay
             history_host.append(host)
             print item
