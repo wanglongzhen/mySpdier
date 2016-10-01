@@ -199,10 +199,10 @@ class UnicomSpider(Union):
         count = 0
         while(True):
             count = count + 1
-            if count > 20:
+            if count > 4:
                 return False
             try:
-                ui.WebDriverWait(browser, 2).until(lambda driver : not self.driver.find_element_by_id(element).is_displayed())
+                ui.WebDriverWait(browser, 5).until(lambda driver : not self.driver.find_element_by_id(element).is_displayed())
                 break
             except Exception, e:
                 pass
