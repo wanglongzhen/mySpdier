@@ -332,7 +332,7 @@ class UnicomSpider(Union):
                 host['receive_phone'] = call_list[2]
             elif len(call_list) == 5:
                 host['send_time'] = call_list[0]
-                host['trade_away'] = call_list[2]
+                host['trade_way'] = call_list[2]
                 host['receive_phone'] = call_list[3]
 
             self.logger.info(u'下载短信彩信详单 ' + str(host))
