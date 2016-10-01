@@ -329,7 +329,7 @@ class UnicomSpider(Union):
             if len(call_list) == 4:
                 host['send_time'] = call_list[0]
                 host['trade_away'] = u'发送'
-                host['receiver_phone'] = call_list[2]
+                host['receive_phone'] = call_list[2]
             elif len(call_list) == 5:
                 host['send_time'] = call_list[0]
                 host['trade_away'] = call_list[2]
