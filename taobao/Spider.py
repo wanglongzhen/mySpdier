@@ -268,10 +268,14 @@ class UnicomSpider(Union):
         call_sms = []
         #通话详单
         for item in call_dan_maths:
-            self.waiter_not_displayed(driver, 'center_loadingBg')
-            driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
-            self.waiter_not_displayed(driver, 'center_loadingBg')
-            self.logger.info(item + u'月，通话详单：记录页面加载完成')
+            try:
+                self.waiter_not_displayed(driver, 'center_loadingBg')
+                driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
+                self.waiter_not_displayed(driver, 'center_loadingBg')
+                self.logger.info(item + u'月，通话详单：记录页面加载完成')
+            except Exception, e:
+                self.logger.info(item + u'月，通话详单：记录页面加载失败，跳过')
+                continue
 
             while(True):
                 try:
@@ -294,10 +298,14 @@ class UnicomSpider(Union):
         driver.get('http://iservice.10010.com/e3/query/call_sms.html')
         self.waiter_displayed(driver, 'smsmmsResultTab')
         for item in call_dan_maths:
-            driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
-            time.sleep(1)
-            self.waiter_not_displayed(driver, 'center_loadingBg')
-            self.logger.info(item + u'月，短信彩信:记录页面加载完成')
+            try:
+                driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
+                time.sleep(1)
+                self.waiter_not_displayed(driver, 'center_loadingBg')
+                self.logger.info(item + u'月，短信彩信:记录页面加载完成')
+            except Exception, e:
+                self.logger.info(item + u'月，短信彩信:记录页面加载失败，跳过')
+                continue
 
             while(True):
                 try:
