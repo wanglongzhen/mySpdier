@@ -328,7 +328,7 @@ class UnicomSpider(Union):
             call_list = [re.sub('<(\S|\s)*>|\s|/+', '', item.text)  for item in tr_data.find_all('th')]
             if len(call_list) == 4:
                 host['send_time'] = call_list[0]
-                host['trade_away'] = u'发送'
+                host['trade_way'] = u'发送'
                 host['receive_phone'] = call_list[2]
             elif len(call_list) == 5:
                 host['send_time'] = call_list[0]
