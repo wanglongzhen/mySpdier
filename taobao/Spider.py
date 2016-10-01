@@ -175,7 +175,11 @@ class UnicomSpider(Union):
         self.waiter_not_displayed(self.driver, 'center_loadingGif')
         self.logger.info(u'跳转通话详情成功' + self.phone_num)
 
-        call_dan, callsms = self.get_call_dan(self.driver, self.phone_num)
+        try:
+            call_dan, callsms = self.get_call_dan(self.driver, self.phone_num)
+        except Exception, e:
+            print e
+            self.track_back_err_print(sys.exc_info())
 
         #存数据到数据库中
         if len(user_info) > 0:
