@@ -41,27 +41,18 @@ class Servers(SRH):
         """
         print 'got connection from ', self.client_address
         # self.wfile.write('connection %s:%s at %s succeed!' % (self.server.server_address[0], self.server.server_address[1], ctime()))
+        #第一次建立连接，初始化一个空的对象
         mobile = None
 
-        # while True:
-        #     data = self.request.recv(1024)
-        #     if not data:
-        #         break
-        #
-        #     #业务逻辑
-        #     response = self.spider(data, mobile)
-        #     str_response = json.dumps(response)
-        #     self.request.send(str_response)
-
-        #开始，根据recv的数据中mobile_type判断运营商的类型，走不通的爬取路径
-        # data = self.request.recv(1024)
-
-
         while True:
+            flag = True
             recv_data = self.request.recv(1024)
             data = self.json_value(recv_data)
             ret, flag = self.spider(data, mobile)
             response = json.dumps(ret)
+            # print recv_data
+            # time.sleep(20)
+            # response = "ddd"
             self.request.send(response)
 
             #如果返回FALSE，则说明交互结束，退出循环
@@ -71,17 +62,6 @@ class Servers(SRH):
             else:
                 continue
 
-
-        # data = self.request.recv(1024)
-        # json_data = self.json_value(data)
-        #
-        # if json_data['param']['mobile_type'] == 'unicom':
-        #     response = self.unicom_spider(data, mobile)
-        # elif json_data['param']['mobile_type'] == 'mobile':
-        #     response = self.mobile_spider(data, mobile)
-        #
-        # str_response = json.dumps(response)
-        # self.request.send(str_response)
 
     def spider(self, data, mobile):
         """
@@ -99,14 +79,14 @@ class Servers(SRH):
             response['message'] = "传入数据格式不是json格式，解析失败"
             response['timeout'] = 15
             response['img_flag'] = 0
-            return response
+            return response, True
 
         mobile_type = self.get_value_by_data(param, 'mobile_type')
 
         if mobile_type == 'mobile':
-            self.mobile_spider(data, mobile)
+            return self.mobile_spider(data, mobile)
         elif mobile_type == 'unicom':
-            self.unicom_spider(data, mobile)
+            return self.unicom_spider(data, mobile)
         elif mobile_type == None:
             response = {}
             response['error_no'] = 2
@@ -114,6 +94,7 @@ class Servers(SRH):
             response['message'] = "需要传入手机号的mobile_type值"
             response['timeout'] = 15
             response['img_flag'] = 0
+            return response, True
         else:
             #处理其他情况
             pass
@@ -152,7 +133,7 @@ class Servers(SRH):
             response['message'] = "传入数据格式不是json格式，解析失败"
             response['timeout'] = 15
             response['img_flag'] = 0
-            return response
+            return response, True
 
         method = self.get_value_by_data(data, 'method')
         img_sms = self.get_value_by_data(data, 'img_sms')
@@ -165,21 +146,17 @@ class Servers(SRH):
             response['message'] = "param参数不存在，json格式错误"
             response['timeout'] = 15
             response['img_flag'] = 0
-            return response, False
-
+            return response, True
 
         passwd = self.get_value_by_data(param, 'password')
 
         #有图片密码
-        if img_sms != None:
-            pass
-
-        if data['method'] == 'login' and mobile == None:
+        if data['method'] == 'login' and img_sms != None:
             # 1登录联通
-            print 'mobile is None login method'
-            mobile = UnicomSpider(task_no, passwd)
-            ret, message = mobile.login()
-            if ret == True:
+            print 'login method'
+            # mobile = UnicomSpider(task_no, passwd)
+            ret, message = mobile.login(img_sms)
+            if ret == 0:
                 response['error_no'] = 0
                 response['task_no'] = data['task_no']
                 response['message'] = message
@@ -192,6 +169,17 @@ class Servers(SRH):
                 # 2 登录后爬取数据
                 print 'mobile Spider detail info'
                 mobile.spider_detail()
+
+                return response, False
+            elif ret == 1:
+                response['error_no'] = 1
+                response['task_no'] = data['task_no']
+                response['message'] = '需要输入图片验证码'
+                response['timeout'] = 15
+                response['img_flag'] = 1
+                response['img_data'] = message
+
+                return response, True
             else:
                 response['error_no'] = 1
                 response['task_no'] = task_no
@@ -199,7 +187,45 @@ class Servers(SRH):
                 response['timeout'] = 15
                 response['img_flag'] = 0
 
-            return response
+            return response, True
+
+        if data['method'] == 'login' and mobile == None:
+            # 1登录联通
+            print 'mobile is None login method'
+            mobile = UnicomSpider(task_no, passwd)
+            ret, message = mobile.login()
+            if ret == 0:
+                response['error_no'] = 0
+                response['task_no'] = data['task_no']
+                response['message'] = message
+                response['timeout'] = 15
+                response['img_flag'] = 0
+
+                str_response = json.dumps(response)
+                self.request.send(str_response)
+
+                # 2 登录后爬取数据
+                print 'mobile Spider detail info'
+                mobile.spider_detail()
+
+                return response, False
+            elif ret == 1:
+                response['error_no'] = 1
+                response['task_no'] = data['task_no']
+                response['message'] = '需要输入图片验证码'
+                response['timeout'] = 15
+                response['img_flag'] = 1
+                response['img_data'] = message
+
+                return response, True
+            else:
+                response['error_no'] = 1
+                response['task_no'] = task_no
+                response['message'] = message
+                response['timeout'] = 15
+                response['img_flag'] = 0
+
+            return response, True
 
         elif method == 'login' and mobile != None:
             print 'mobile is not None login method'
@@ -209,64 +235,64 @@ class Servers(SRH):
             response['timeout'] = 15
             response['img_flag'] = 0
 
-            return response
+            return response, True
 
 
-    def spider1(self, data, mobile):
-        """
-        开始爬取
-        :param data:
-        :param mobile:
-        :return:
-        """
-        response = {}
-
-        json_data = self.json_value(data)
-        if json_data == None:
-            response['error_no'] = 2
-            response['task_no'] = 0
-            response['message'] = "传入数据格式不是json格式，解析失败"
-            response['timeout'] = 15
-            response['img_flag'] = 0
-            return response
-
-        if  json_data['method'] == 'login' and mobile == None:
-            # 1登录联通
-            print 'mobile is None login method'
-            mobile = UnicomSpider(json_data['task_no'], json_data['param']['password'])
-            ret, message = mobile.login()
-            if ret == True:
-                response['error_no'] = 0
-                response['task_no'] = json_data['task_no']
-                response['message'] = message
-                response['timeout'] = 15
-                response['img_flag'] = 0
-
-
-                str_response = json.dumps(response)
-                self.request.send(str_response)
-
-                #2 登录后爬取数据
-                print 'mobile Spider detail info'
-                mobile.spider_detail()
-            else:
-                response['error_no'] = 1
-                response['task_no'] = json_data['task_no']
-                response['message'] = message
-                response['timeout'] = 15
-                response['img_flag'] = 0
-
-            return response
-
-        elif json_data['method']  == 'login' and mobile != None:
-            print 'mobile is not None login method'
-            response['error_no'] = 1
-            response['task_no'] = json_data['task_no']
-            response['message'] = "登录成功，正在下载中"
-            response['timeout'] = 15
-            response['img_flag'] = 0
-
-            return response
+    # def spider1(self, data, mobile):
+    #     """
+    #     开始爬取
+    #     :param data:
+    #     :param mobile:
+    #     :return:
+    #     """
+    #     response = {}
+    #
+    #     json_data = self.json_value(data)
+    #     if json_data == None:
+    #         response['error_no'] = 2
+    #         response['task_no'] = 0
+    #         response['message'] = "传入数据格式不是json格式，解析失败"
+    #         response['timeout'] = 15
+    #         response['img_flag'] = 0
+    #         return response
+    #
+    #     if  json_data['method'] == 'login' and mobile == None:
+    #         # 1登录联通
+    #         print 'mobile is None login method'
+    #         mobile = UnicomSpider(json_data['task_no'], json_data['param']['password'])
+    #         ret, message = mobile.login()
+    #         if ret == True:
+    #             response['error_no'] = 0
+    #             response['task_no'] = json_data['task_no']
+    #             response['message'] = message
+    #             response['timeout'] = 15
+    #             response['img_flag'] = 0
+    #
+    #
+    #             str_response = json.dumps(response)
+    #             self.request.send(str_response)
+    #
+    #             #2 登录后爬取数据
+    #             print 'mobile Spider detail info'
+    #             mobile.spider_detail()
+    #         else:
+    #             response['error_no'] = 1
+    #             response['task_no'] = json_data['task_no']
+    #             response['message'] = message
+    #             response['timeout'] = 15
+    #             response['img_flag'] = 0
+    #
+    #         return response
+    #
+    #     elif json_data['method']  == 'login' and mobile != None:
+    #         print 'mobile is not None login method'
+    #         response['error_no'] = 1
+    #         response['task_no'] = json_data['task_no']
+    #         response['message'] = "登录成功，正在下载中"
+    #         response['timeout'] = 15
+    #         response['img_flag'] = 0
+    #
+    #         return response
 
     def json_value(self, json_str):
         """
@@ -327,8 +353,3 @@ def main(cfg_path = 'db.conf'):
 
 if __name__ == '__main__':
     main()
-
-
-
-
-

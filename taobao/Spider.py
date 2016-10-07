@@ -23,6 +23,7 @@ import ConfigParser
 import MySQLdb
 import traceback
 from PIL import Image
+import base64
 
 from union import Union
 
@@ -43,10 +44,117 @@ class UnicomSpider(Union):
         self.login_url = 'https://uac.10010.com/portal/homeLogin'
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
         Union.__exit__(self.exc_type, exc_val, exc_tb)
 
-    def login(self):
+    def login(self, img_sms = None):
+        """
+        登录入口
+        :return:
+        """
+        if img_sms == None:
+            return self.login_with_no_sms()
+        else:
+            return self.login_with_sms(img_sms)
+
+    def login_with_sms(self):
+        time.sleep(2)
+        self.driver.find_element_by_xpath("//input[@id='login1']").click()
+        self.waiter_fordisplayed(self.driver, 'nickSpan')
+
+        if self.driver.current_url == self.login_url:
+            print("登录失败")
+            return 2, '登录跳转时失败'
+
+        self.logger.info(u'登录成功， 用户名： ' + self.phone_num)
+
+        return 0, '登录成功'
+
+
+    def login_with_no_sms(self):
+        print 'MobileSpider login'
+        # self.driver = webdriver.PhantomJS()
+        try:
+            self.driver = webdriver.Chrome()
+            self.driver.maximize_window()
+
+            self.driver.delete_all_cookies()
+
+            self.logger.info(u'登录联通,用户名： ' + self.phone_num + u'， 密码： ')
+            self.driver.get(self.login_url)
+
+            # time.sleep(2)
+            try:
+                self.driver.find_element_by_xpath("//input[@id='userName']").clear()
+                self.driver.find_element_by_xpath("//input[@id='userName']").send_keys(self.phone_num)
+
+                self.logger.info(u'登录联通,输入用户名： ' + self.phone_num + u'， 密码： ')
+                time.sleep(2)
+                self.driver.find_element_by_xpath("//input[@id='userPwd']").clear()
+                self.driver.find_element_by_xpath("//input[@id='userPwd']").send_keys(self.passwd)
+
+                self.logger.info(u'登录联通,输入密码： ' + self.phone_num + u'， 密码： ')
+            except Exception, e:
+                return False, u'登录页面加载失败'
+
+            try:
+                time.sleep(2)
+                if self.driver.find_element_by_xpath("//img[@id='loginVerifyImg']").is_displayed():
+                    self.driver.maximize_window()
+                    #不可用，图片请求一次会变化一次
+                    # s = requests.session()
+                    # html = s.get(self.driver.find_element_by_xpath("//img[@id='loginVerifyImg']").get_attribute('src')).content
+                    # f = open('verifyCode.jpg', 'wb')
+                    # f.write(html)
+                    # f.close()
+
+                    element = self.driver.find_element_by_id('loginVerifyImg')
+                    src_file = self.phone_num + '_img.jpg'
+                    dst_file = self.phone_num + '_img_corp.jpg'
+                    # src_file = 'aaa' + 'aaaimg.jpg'
+                    self.driver.save_screenshot(src_file)
+
+                    location = element.location
+                    size = element.size
+                    im = Image.open(src_file)
+                    # left = location['x'] + fram_rect['x']
+                    # top = location['y'] + fram_rect['y']
+                    # right = location['x']  + fram_rect['x'] + size['width']
+                    # bottom = location['y']  + fram_rect['y'] + size['height']
+                    left = location['x']
+                    top = location['y']
+                    right = location['x'] + size['width']
+                    bottom = location['y'] + size['height']
+
+                    box = (left, top, right, bottom)
+                    im.crop(box).save(dst_file)
+
+                    f = open(dst_file, 'rb')  # 二进制方式打开图文件
+                    ls_f = base64.b64encode(f.read())  # 读取文件内容，转换为base64编码
+                    f.close()
+                    return 1, ls_f
+                    # print("输入验证码")
+                    # self.logger.error(u'登录失败，输入验证码' + self.phone_num)
+            except Exception, e:
+                print traceback.print_exc()
+                print("登录成功")
+
+            time.sleep(2)
+            self.driver.find_element_by_xpath("//input[@id='login1']").click()
+            self.waiter_fordisplayed(self.driver, 'nickSpan')
+
+            if self.driver.current_url == self.login_url:
+                print("登录失败")
+                return 2, '登录跳转时失败'
+
+            self.logger.info(u'登录成功， 用户名： ' + self.phone_num)
+
+            return 0, '登录成功'
+
+        except Exception, e:
+            return 2, '登录失败'
+
+
+    def login_old(self):
         print 'MobileSpider login'
         # self.driver = webdriver.PhantomJS()
         self.driver = webdriver.Chrome()
@@ -389,6 +497,7 @@ class UnicomSpider(Union):
 
         self.logger.info(u'跳转到历史账单' + user)
 
+        self.waiter_displayed(self.driver, 'score_list_ul')
         soup = bs(driver.page_source)
         call_math = soup.find('ul', id='score_list_ul').find('li', class_='on').text
         call_pay = soup.find('div', id='historylistContext').find('td', class_='bg fn', style=None).text

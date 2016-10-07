@@ -120,6 +120,7 @@ class Union(object):
         try:
             self.save_db( task_id, phone_num, table, fields, data)
         except Exception, e:
+            print traceback.print_exc()
             self.logger.info(u'保存' + table + u'表失败')
             self.track_back_err_print(sys.exc_info())
 
@@ -203,6 +204,7 @@ class Union(object):
         else:
             conn.commit()
             self.logger.info(u'写入数据成功' + table + u', sql : ' + sql_ins_format)
+            self.logger.info(u'写入数据成功' + table + u', 写入数据数目： ' + str(len(param)))
         finally:
             cursor.close()
             conn.close()
@@ -213,7 +215,8 @@ class Union(object):
         :param info:
         :return:
         """
-        self.logger.info(info[1])
+        err_info = str(info[0]) + ": " + str(info[1])
+        self.logger.info(err_info)
         for file, lineno, function, text in traceback.extract_tb(info[2]):
             self.logger.info(file+"line:" + str(lineno) + "in" + str(function))
             self.logger.info(text)
