@@ -11,12 +11,13 @@ import SocketServer
 from SocketServer import StreamRequestHandler as SRH
 from time import ctime
 from Spider import UnicomSpider
-
+from mobileSpider import MobileSpider
 
 import ConfigParser
 import time
 import json
 import traceback
+
 
 import comm_log
 
@@ -115,7 +116,105 @@ class Servers(SRH):
         return value
 
     def mobile_spider(self, data):
-        pass
+        """
+        移动开始爬取
+        :param data:
+        :param mobile:
+        :return:
+        """
+
+        response = {}
+        if data == None:
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = "传入数据格式不是json格式，解析失败"
+            response['timeout'] = 15
+            response['img_flag'] = 0
+            return response, True
+
+        method = self.get_value_by_data(data, 'method')
+        task_no = self.get_value_by_data(data, 'task_no')
+        param = self.get_value_by_data(data, 'param')
+
+        if param == None:
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = "param参数不存在，json格式错误"
+            response['timeout'] = 15
+            response['img_flag'] = 0
+            return response, True
+
+        passwd = self.get_value_by_data(param, 'password')
+
+        if method == 'login' and self.mobile == None:
+            # 1登录触发验证码
+            print 'mobile is None login method'
+            mobile = MobileSpider(task_no, passwd)
+            ret, message = mobile.login()
+            if ret == True:
+                response['error_no'] = 0
+                response['task_no'] = task_no
+                response['message'] = message
+                response['timeout'] = 10
+
+                str_response = json.dumps(response)
+                self.request.send(str_response)
+
+                # 等待第一次验证码
+                while True:
+                    sms_data = self.request.recv(1024)
+                    json_sms_data = self.json_value(sms_data)
+                    sms_param = self.get_value_by_data(json_sms_data, 'param')
+                    sms_passwd = self.get_value_by_data(sms_param, 'sms_pwd')
+                    ret, message = mobile.login_first_sms(sms_passwd)
+
+                    if ret == False:
+                        response['error_no'] = 1
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                    elif ret == True:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 70
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                        break
+
+                # 等待第二次短信验证码
+                while True:
+                    sms_data = self.request.recv(1024)
+                    json_sms_data = self.json_value(sms_data)
+                    sms_param = self.get_value_by_data(json_sms_data, 'param')
+                    sms_passwd = self.get_value_by_data(sms_param, 'sms_pwd')
+                    ret, message = mobile.login_sec_sms(sms_passwd)
+
+                    if ret == False:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                    elif ret == True:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+
+            else:
+                response['error_no'] = 1
+                response['task_no'] = task_no
+                response['message'] = message
+                response['timeout'] = 10
+
+            return False, response
+
 
     def unicom_spider(self, data):
         """

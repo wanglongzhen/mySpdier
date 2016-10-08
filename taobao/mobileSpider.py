@@ -62,20 +62,22 @@ class MobileSpider(Union):
         Union.__exit__(self.exc_type, exc_val, exc_tb)
 
     def login(self):
-        self.driver.get(self.login_url)
-        self.logger.info(u'登录移动,用户名： ' + self.phone_num + u'， 密码： ')
+        try:
+            self.driver.get(self.login_url)
+            self.logger.info(u'登录移动,用户名： ' + self.phone_num + u'， 密码： ')
 
-        self.driver.find_element_by_id('p_name').clear()
-        self.driver.find_element_by_id('p_name').click()
-        self.driver.find_element_by_id('p_name').send_keys(self.phone_num)
-        time.sleep(2)
+            self.driver.find_element_by_id('p_name').clear()
+            self.driver.find_element_by_id('p_name').click()
+            self.driver.find_element_by_id('p_name').send_keys(self.phone_num)
 
-        self.logger.info(u'登录移动,填充手机号，用户名： ' + self.phone_num + u'， 密码： ')
+            self.logger.info(u'登录移动,填充手机号，用户名： ' + self.phone_num + u'， 密码： ')
 
-        self.driver.find_element_by_id('p_pwd').clear()
-        self.driver.find_element_by_id('p_pwd').send_keys(self.passwd)
-        time.sleep(2)
-        self.logger.info(u'登录移动,填充服务密码，用户名： ' + self.phone_num + u'， 密码： ')
+            self.driver.find_element_by_id('p_pwd').clear()
+            self.driver.find_element_by_id('p_pwd').send_keys(self.passwd)
+            time.sleep(2)
+            self.logger.info(u'登录移动,填充服务密码，用户名： ' + self.phone_num + u'， 密码： ')
+        except Exception, e:
+            return False, u'登录页面加载失败'
 
         try:
             element = self.driver.find_element_by_id('smspwdbord')
@@ -86,7 +88,7 @@ class MobileSpider(Union):
             else:
                 print("不需要验证码")
         except Exception, e:
-            pass
+            return False, u'登录验证码点击失败'
         return True, u'触发登录验证码成功'
 
 
@@ -98,13 +100,36 @@ class MobileSpider(Union):
         self.driver.find_element_by_id('submit_bt').click()
         self.logger.info(u'登录移动,点击登录，用户名： ' + self.phone_num + u'， 密码： ')
 
-        if not self.waiter_fordisplayed(self.driver, 'divLogin'):
+        if not self.waiter_fordisplayed(self.driver, 'divLogin') or not self.waiter_fordisplayed(self.driver, 'stc_myaccount'):
+            message = ""
+            try:
+                msg = self.driver.find_element_by_id('phonepwd_error').text
+                if msg != u'':
+                    message = msg
+            except:
+                pass
+            try:
+                msg = self.driver.find_element_by_id('smspwd_error').text
+                if msg != u'':
+                    message = msg
+            except:
+                pass
+            try:
+                msg = self.driver.find_element_by_id('phone_error').text
+                if msg != u'':
+                    message = msg
+            except:
+                pass
+
             self.logger.info(u'登录移动，超时失败' + self.phone_num)
             self.driver.refresh()
 
-        if not self.waiter_fordisplayed(self.driver, 'stc_myaccount'):
-            self.logger.info(u'登录移动，超时失败' + self.phone_num)
-            self.driver.refresh()
+            return False, message
+        #
+        # if not self.waiter_fordisplayed(self.driver, 'stc_myaccount'):
+        #     self.logger.info(u'登录移动，超时失败' + self.phone_num)
+        #     self.driver.refresh()
+
 
         self.logger.info(u'登录移动,完成登录，用户名： ' + self.phone_num + u'， 密码： ')
 

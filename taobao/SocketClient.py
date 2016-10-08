@@ -22,8 +22,8 @@ def unicom():
 
         # 联通数据交互过程
         data = raw_input()
-        # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":861357}}'
-        # data = '{"method":"login","task_no":18662726006, "param": {"mobile_type":"unicom", "password":526280}}'
+        # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":"861357"}}'
+        # data = '{"method":"login","task_no":18662726006, "param": {"mobile_type":"unicom", "password":"526280"}}'
 
         if not data or data == 'exit':
             break
@@ -45,7 +45,7 @@ def unicom():
 
             # 输入图片验证码
             data = raw_input()
-            # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":861357, "img_sms":""}}'
+            # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":"861357", "img_sms":""}}'
             client.send('%s\r\n' % data)
 
         elif ret_json['img_flag'] == 0:
@@ -61,7 +61,7 @@ def mobile():
 
         # 移动数据交互过程
         #等待输入发送服务端的json串
-        # data = '{"method":"login","task_no":18513622965, "param": {"mobile_type":"mobile", "password":978672}}'
+        # data = '{"method":"login","task_no":13605394093, "param": {"mobile_type":"mobile", "password":"861357"}}'
         data = raw_input()
 
 
@@ -73,38 +73,38 @@ def mobile():
 
         print data.strip()
         ret_json = json.loads(data)
-        if ret_json['error'] == '0':
+        if ret_json['error_no'] ==0:
             #触发登录短信验证码成功
 
             # 输入登录验证码
             data = raw_input()
-            # data = '{"method":"login_sms","task_no":18513622865, "param": {"mobile_type":"unicom", "password":861357, "sms_passwd":123456}}'
+            # data = '{"method":"login_sms","task_no":13605394093, "param": {"mobile_type":"unicom", "password":"861357", "sms_pwd":""}}'
             client.send('%s\r\n' % data)
 
             data = client.recv(bufsize)
             print data.strip()
             ret = json.loads(data)
-            if ret['error_no'] == '0':
+            if ret['error_no'] ==0:
                 #输入详单查询验证码
                 data = raw_input()
-                # data = '{"method":"login_vec","task_no":18513622965, "param": {"mobile_type":"unicom", "password":861357, "sms_passwd":123456}}'
+                # data = '{"method":"login_vec","task_no":18513622965, "param": {"mobile_type":"unicom", "password":861357, "sms_pawd":""}}'
                 client.send('%s\r\n' % data)
 
                 data = client.recv(bufsize)
                 print data.strip()
                 ret = json.loads(data)
 
-                if ret['error_no'] == '0':
+                if ret['error_no'] == 0:
                     print("登录成功，下载详单成功")
-                elif ret['error_no'] == '1' or ret['error_no'] == '2':
+                elif ret['error_no'] ==0 or ret['error_no'] == 0:
                     print ret['message']
                     break
-            elif ret['error_no'] == '1' or ret['error_no'] == '2':
+            elif ret['error_no'] == 0 or ret['error_no'] == 0:
                 print ret['message']
                 break
 
 
-        elif ret_json['error_no'] == '1' or ret_json['error_no']:
+        elif ret_json['error_no'] == 0 or ret_json['error_no']:
             print('登录失败')
             print ret_json['message']
             break
@@ -114,6 +114,6 @@ def mobile():
 if __name__ == '__main__':
 
     #联通
-    unicom()
+    # unicom()
     #移动
-    # mobile()
+    mobile()
