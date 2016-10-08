@@ -56,12 +56,26 @@ class UnicomSpider(Union):
         else:
             return self.login_with_sms(img_sms)
 
-    def login_with_sms(self):
-        time.sleep(2)
+    def login_with_sms(self, img_sms):
+
+        self.driver.find_element_by_xpath("//input[@id='verifyCode']").clear()
+        self.driver.find_element_by_xpath("//input[@id='verifyCode']").send_keys(img_sms)
+
         self.driver.find_element_by_xpath("//input[@id='login1']").click()
         self.waiter_fordisplayed(self.driver, 'nickSpan')
 
         if self.driver.current_url == self.login_url:
+            # 没有跳转
+            message = ""
+            try:
+                message = self.driver.find_element_by_xpath('//span[@class="error left mt35mf32"]').text
+            except:
+                pass
+            try:
+                message = self.driver.find_element_by_xpath('//span[@class="error left mt10mf32"]').text
+            except:
+                pass
+
             print("登录失败")
             return 2, '登录跳转时失败'
 
@@ -88,7 +102,7 @@ class UnicomSpider(Union):
                 self.driver.find_element_by_xpath("//input[@id='userName']").send_keys(self.phone_num)
 
                 self.logger.info(u'登录联通,输入用户名： ' + self.phone_num + u'， 密码： ')
-                time.sleep(2)
+
                 self.driver.find_element_by_xpath("//input[@id='userPwd']").clear()
                 self.driver.find_element_by_xpath("//input[@id='userPwd']").send_keys(self.passwd)
 
@@ -138,13 +152,23 @@ class UnicomSpider(Union):
                 print traceback.print_exc()
                 print("登录成功")
 
-            time.sleep(2)
+
             self.driver.find_element_by_xpath("//input[@id='login1']").click()
             self.waiter_fordisplayed(self.driver, 'nickSpan')
-
             if self.driver.current_url == self.login_url:
+                #没有跳转
+                message = ""
+                try:
+                    message = self.driver.find_element_by_xpath('//span[@class="error left mt35mf32"]').text
+                except:
+                    pass
+                try:
+                    message = self.driver.find_element_by_xpath('//span[@class="error left mt10mf32"]').text
+                except:
+                    pass
+
                 print("登录失败")
-                return 2, '登录跳转时失败'
+                return 2, message
 
             self.logger.info(u'登录成功， 用户名： ' + self.phone_num)
 
@@ -498,6 +522,7 @@ class UnicomSpider(Union):
         self.logger.info(u'跳转到历史账单' + user)
 
         self.waiter_displayed(self.driver, 'score_list_ul')
+        self.waiter_displayed(self.driver, 'historylistContext')
         soup = bs(driver.page_source)
         call_math = soup.find('ul', id='score_list_ul').find('li', class_='on').text
         call_pay = soup.find('div', id='historylistContext').find('td', class_='bg fn', style=None).text

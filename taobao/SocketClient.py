@@ -8,10 +8,11 @@ Date: '2016/9/24' '20:32'
 
 from socket import *
 import json
+import base64
 
 host = 'localhost'
 port = 9999
-bufsize = 1024
+bufsize = 10240
 addr = (host, port)
 client = socket(AF_INET, SOCK_STREAM)
 client.connect(addr)
@@ -22,6 +23,7 @@ def unicom():
         # 联通数据交互过程
         data = raw_input()
         # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":861357}}'
+        # data = '{"method":"login","task_no":18662726006, "param": {"mobile_type":"unicom", "password":526280}}'
 
         if not data or data == 'exit':
             break
@@ -32,19 +34,24 @@ def unicom():
             break
         print data.strip()
         ret_json = json.loads(data)
-        if ret_json['img_flag'] == '1':
+        if ret_json['img_flag'] == 1:
             img_data = ret_json['img_data']
             # 处理图片数据
+            img = base64.b64decode(img_data)
+            dst_file = r'client_img.jpg'
+            with open(dst_file, 'wb') as f:
+                f.write(img)
+
 
             # 输入图片验证码
             data = raw_input()
-            # data = '{"method":"login","task_no":18513622965, "param": {"mobile_type":"unicom", "password":861357, "img_sms":123456}}'
+            # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":861357, "img_sms":""}}'
             client.send('%s\r\n' % data)
 
-        elif ret_json['img_flag'] == '0':
+        elif ret_json['img_flag'] == 0:
             print('登录成功')
             break
-        elif ret_json['error_no'] == '1':
+        elif ret_json['error_no'] == 1:
             print("登录失败")
     client.close()
 
