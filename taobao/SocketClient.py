@@ -61,7 +61,7 @@ def mobile():
 
         # 移动数据交互过程
         #等待输入发送服务端的json串
-        # data = '{"method":"login","task_no":13605394093, "param": {"mobile_type":"mobile", "password":"861357"}}'
+        # data = '{"method":"login","task_no":13608542018, "param": {"mobile_type":"mobile", "password":"736431"}}'
         data = raw_input()
 
 
@@ -78,7 +78,7 @@ def mobile():
 
             # 输入登录验证码
             data = raw_input()
-            # data = '{"method":"login_sms","task_no":13605394093, "param": {"mobile_type":"unicom", "password":"861357", "sms_pwd":""}}'
+            # data = '{"method":"login_sms","task_no":13608542018, "param": {"mobile_type":"mobile", "password":"736431", "sms_pwd":""}}'
             client.send('%s\r\n' % data)
 
             data = client.recv(bufsize)
