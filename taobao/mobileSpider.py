@@ -85,6 +85,7 @@ class MobileSpider(Union):
             if element.is_displayed():
                 print("输入短信验证码:")
                 self.driver.find_element_by_id('getSMSPwd').click()
+                self.logger.info(u'登录移动,触发登录短信验证码，用户名： ' + self.phone_num + u'， 密码： ')
             else:
                 print("不需要验证码")
         except Exception, e:
@@ -726,7 +727,7 @@ class MobileSpider(Union):
                     self.logger.info(u'移动，详单查询，跳转过程中...' + item.text)
                     print('点击' + item.text)
 
-            wait = WebDriverWait(self.driver, 10)
+            wait = WebDriverWait(self.driver, 20)
             wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@alis="billdetailqry"]')))
             self.driver.find_element_by_xpath('//a[@alis="billdetailqry"]').click()
 
