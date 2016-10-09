@@ -430,8 +430,7 @@ class UnicomSpider(Union):
         time.sleep(2)
         try:
             driver.get('http://iservice.10010.com/e3/query/call_sms.html')
-            if self.waiter_displayed(driver, 'smsmmsResultTab') == False:
-                driver.get('http://iservice.10010.com/e3/query/call_sms.html')
+            self.waiter_displayed(driver, 'smsmmsResultTab')
         except:
             self.logger.info(u'跳转短信详单页面报错')
             self.track_back_err_print(sys.exc_info())
@@ -448,7 +447,13 @@ class UnicomSpider(Union):
 
             while(True):
                 try:
-                    self.waiter_displayed(driver, 'smsmmsResultTab')
+                    if self.waiter_displayed(driver, 'smsmmsResultTab') == False:
+                        try:
+                            self.logger.info(item + self.driver.find_element_by_id('queryError').text)
+                        except:
+                            self.logger.info(item + u'queryErrorDOM不存在')
+                            self.logger.info(sys.exc_info())
+
                     self.get_sms_detail(driver.page_source, call_sms)
                     self.logger.info(item + u'月，短信彩信:当前页的数据抓取完成')
                     self.logger.info(item + u'月，通话详单：当前页码' + driver.find_element_by_id('select_op').find_element_by_xpath('//option[@selected="selected"]').text)
