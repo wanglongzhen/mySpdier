@@ -124,6 +124,17 @@ class MobileSpider(Union):
             self.logger.info(u'登录移动，超时失败' + self.phone_num)
             self.driver.refresh()
 
+            # 登录失败，重新触发验证码
+            try:
+                element = self.driver.find_element_by_id('smspwdbord')
+                if element.is_displayed():
+                    print("输入短信验证码:")
+                    self.driver.find_element_by_id('getSMSPwd').click()
+                else:
+                    print("不需要验证码")
+            except Exception, e:
+                return False, u'登录验证码点击失败。 ' + message
+
             return False, message
         #
         # if not self.waiter_fordisplayed(self.driver, 'stc_myaccount'):
