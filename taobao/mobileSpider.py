@@ -49,7 +49,7 @@ class MobileSpider(Union):
 
         self.homepage = 'http://www.10086.com'
         self.login_url = 'https://login.10086.cn/login.html?channelID=12003&backUrl=http://shop.10086.cn/i/'
-
+        #
         self.driver = webdriver.PhantomJS()
 
         # self.driver = webdriver.Chrome()
@@ -231,6 +231,7 @@ class MobileSpider(Union):
 
 
         if not self.waiter_fordisplayed(self.driver, 'divLogin') :
+            self.driver.save_screenshot('divLogin.jpg')
             self.logger.info(u'登录移动，超时失败' + user)
             self.driver.refresh()
 
@@ -708,6 +709,7 @@ class MobileSpider(Union):
         :return:
         """
 
+
         try:
 
             wait = WebDriverWait(self.driver, 10)
@@ -721,18 +723,21 @@ class MobileSpider(Union):
             for item in self.driver.find_elements_by_xpath('//ul[@class="list-c1 js_list_active"]'):
                 if u'我的账户' in item.text:
                     item.click()
+                    ActionChains(self.driver).move_to_element(item).click(item).perform()
+                    self.driver.save_screenshot(self.phone_num + '_billdetailqry1.jpg')
                     self.logger.info(u'移动，详单查询，点击' + item.text)
                     print('点击我的账户')
                 else:
                     self.logger.info(u'移动，详单查询，跳转过程中...' + item.text)
                     print('点击' + item.text)
 
-            wait = WebDriverWait(self.driver, 20)
+            wait = WebDriverWait(self.driver, 10)
             wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@alis="billdetailqry"]')))
             self.driver.find_element_by_xpath('//a[@alis="billdetailqry"]').click()
 
             self.logger.info(u'移动，详单查询，点击详单查询')
         except Exception, e:
+            self.driver.save_screenshot(self.phone_num + '_billdetailqry.jpg')
             self.logger.info(u'移动，详单查询，点击详单查询失败')
             self.track_back_err_print(sys.exc_info())
 
