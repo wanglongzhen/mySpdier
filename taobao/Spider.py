@@ -354,15 +354,14 @@ class UnicomSpider(Union):
         count = 0
         while(True):
             count = count + 1
-            if count > 4:
+            if count > 3:
                 return False
             try:
                 ui.WebDriverWait(browser, 5).until(lambda driver : driver.find_element_by_id(element).is_displayed())
                 break
             except Exception, e:
-                pass
                 print('元素没有展示' + element)
-                self.logger.error(u'元素没有展示' + element)
+                self.logger.info(u'元素没有展示' + element)
 
         return True
 
@@ -376,15 +375,14 @@ class UnicomSpider(Union):
         count = 0
         while(True):
             count = count + 1
-            if count > 20:
+            if count > 3:
                 return False
             try:
-                ui.WebDriverWait(browser, 2).until(lambda driver : self.driver.find_element_by_id(element).is_displayed())
+                ui.WebDriverWait(browser, 5).until(lambda driver : self.driver.find_element_by_id(element).is_displayed())
                 break
             except Exception, e:
-                pass
                 print('元素没有显示' + element)
-                self.logger.error(u'元素没有显示' + element)
+                self.logger.info(u'元素没有显示' + element)
 
         return True
 
@@ -430,8 +428,13 @@ class UnicomSpider(Union):
         #短信详单
         #跳转短信详单页面
         time.sleep(2)
-        driver.get('http://iservice.10010.com/e3/query/call_sms.html')
-        self.waiter_displayed(driver, 'smsmmsResultTab')
+        try:
+            driver.get('http://iservice.10010.com/e3/query/call_sms.html')
+            if self.waiter_displayed(driver, 'smsmmsResultTab') == False:
+                driver.get('http://iservice.10010.com/e3/query/call_sms.html')
+        except:
+            self.logger.info(u'跳转短信详单页面报错')
+
         for item in call_dan_maths:
             try:
                 driver.find_element_by_xpath('//div/ul/li[@value="' + item + '"]').click()
