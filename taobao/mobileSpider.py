@@ -178,7 +178,7 @@ class MobileSpider(Union):
         self.driver.find_element_by_id('vecbtn').click()
 
         # 等待页面加载通话记录完成
-        self.logger.info(u'移动，查询详单,触发再次登录验证对话框')
+        self.logger.info(u'移动，查询详单,触发再次登录验证对话框，验证成功')
 
         #获取半年通话详单
         time.sleep(5)
