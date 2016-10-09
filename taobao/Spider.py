@@ -434,6 +434,7 @@ class UnicomSpider(Union):
                 driver.get('http://iservice.10010.com/e3/query/call_sms.html')
         except:
             self.logger.info(u'跳转短信详单页面报错')
+            self.track_back_err_print(sys.exc_info())
 
         for item in call_dan_maths:
             try:
