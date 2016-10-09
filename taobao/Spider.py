@@ -86,9 +86,9 @@ class UnicomSpider(Union):
 
     def login_with_no_sms(self):
         print 'MobileSpider login'
-        # self.driver = webdriver.PhantomJS()
         try:
-            self.driver = webdriver.Chrome()
+            self.driver = webdriver.PhantomJS()
+            # self.driver = webdriver.Chrome()
             self.driver.maximize_window()
 
             self.driver.delete_all_cookies()

@@ -50,9 +50,9 @@ class MobileSpider(Union):
         self.homepage = 'http://www.10086.com'
         self.login_url = 'https://login.10086.cn/login.html?channelID=12003&backUrl=http://shop.10086.cn/i/'
 
-        # self.driver = webdriver.PhantomJS()
+        self.driver = webdriver.PhantomJS()
 
-        self.driver = webdriver.Chrome()
+        # self.driver = webdriver.Chrome()
         self.driver.maximize_window()
         self.ses = requests.session()
 
