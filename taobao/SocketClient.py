@@ -10,7 +10,7 @@ from socket import *
 import json
 import base64
 
-host = 'localhost'
+host = '114.215.95.177'
 port = 9999
 bufsize = 10240
 addr = (host, port)
