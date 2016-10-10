@@ -30,8 +30,9 @@ class Servers(SRH):
         初始化函数
         """
 
-        # self.logger = comm_log(123321)
-        # self.logger.info(u'服务端初始化成功')
+        log_name = str(time.time()).replace(".", "0")
+        self.logger = comm_log.comm_log(log_name)
+        self.logger.info(u'服务端初始化成功.等待客户端发送请求！')
         self.mobile = None
 
         SRH.__init__(self, request, client_address, server)
@@ -43,25 +44,31 @@ class Servers(SRH):
         :return:
         """
         print 'got connection from ', self.client_address
+        self.logger.info(u'客户端连接请求' + str(self.client_address))
         # self.wfile.write('connection %s:%s at %s succeed!' % (self.server.server_address[0], self.server.server_address[1], ctime()))
         #第一次建立连接，初始化一个空的对象
 
         while True:
             flag = True
             recv_data = self.request.recv(1024)
+            self.logger.info(u'客户端' + str(self.client_address) + u' 接收到的数据：' + recv_data)
             data = self.json_value(recv_data)
             ret, flag = self.spider(data)
             response = json.dumps(ret)
             # print recv_data
             # time.sleep(20)
             # response = "ddd"
+
             self.request.send(response)
+            self.logger.info(u'客户端' + str(self.client_address) + u' 发送的数据：' + response)
 
             #如果返回FALSE，则说明交互结束，退出循环
             #如果返回True，则交互正常，继续循环
             if flag == False:
+                self.logger.info(u'客户端' + str(self.client_address) + u' 完成交互退出循环')
                 break
             else:
+                self.logger.info(u'客户端' + str(self.client_address) + u' 等待下一次和客户端交互')
                 continue
 
 
@@ -89,6 +96,8 @@ class Servers(SRH):
             ret, mobile_type = self.get_mobile_type(self.get_value_by_data(data, 'task_no'))
         except:
             print('调用apistore接口判断电话号码运行商错误')
+            self.logger.info(u'客户端' + str(self.client_address) + u' 调用apistore接口判断电话号码运行商错误')
+        self.logger.info(u'客户端' + str(self.client_address) + u' 获取运营商的类型' + mobile_type)
         data['param']['mobile_type'] = mobile_type
 
         if mobile_type == 'mobile':
@@ -231,7 +240,7 @@ class Servers(SRH):
         :param mobile:
         :return:
         """
-
+        self.logger.info(u'客户端' + str(self.client_address) + u' 调用 unicom_spider')
         response = {}
         if data == None:
             response['error_no'] = 2
@@ -260,6 +269,7 @@ class Servers(SRH):
         if data['method'] == 'login' and img_sms != None:
             # 1登录联通
             print 'login method'
+            self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，有图片验证码')
             # mobile = UnicomSpider(task_no, passwd)
             ret, message = self.mobile.login(img_sms)
             if ret == 0:
@@ -274,6 +284,7 @@ class Servers(SRH):
 
                 # 2 登录后爬取数据
                 print 'mobile Spider detail info'
+                self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通成功，开始爬取数据')
                 self.mobile.spider_detail()
 
                 return response, False
@@ -298,6 +309,7 @@ class Servers(SRH):
         if data['method'] == 'login' and self.mobile == None:
             # 1登录联通
             print 'mobile is None login method'
+            self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，没有图片验证码')
             self.mobile = UnicomSpider(task_no, passwd)
             ret, message = self.mobile.login()
             if ret == 0:
@@ -312,6 +324,7 @@ class Servers(SRH):
 
                 # 2 登录后爬取数据
                 print 'mobile Spider detail info'
+                self.logger.info(u'客户端' + str(self.client_address) + u' 登录成功，开始爬取数据')
                 self.mobile.spider_detail()
 
                 return response, False
@@ -335,6 +348,7 @@ class Servers(SRH):
 
         elif method == 'login' and self.mobile != None:
             print 'mobile is not None login method'
+            self.logger.info(u'客户端' + str(self.client_address) + u' 登录成功，正在爬取中')
             response['error_no'] = 1
             response['task_no'] = task_no
             response['message'] = "登录成功，正在下载中"
