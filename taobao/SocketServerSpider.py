@@ -18,6 +18,8 @@ import time
 import json
 import traceback
 
+import urllib
+import urllib2
 
 import comm_log
 
@@ -81,7 +83,13 @@ class Servers(SRH):
             response['img_flag'] = 0
             return response, True
 
-        mobile_type = self.get_value_by_data(param, 'mobile_type')
+        # mobile_type = self.get_value_by_data(param, 'mobile_type')
+        mobile_type = ''
+        try:
+            ret, mobile_type = self.get_mobile_type(self.get_value_by_data(data, 'task_no'))
+        except:
+            print('调用apistore接口判断电话号码运行商错误')
+        data['param']['mobile_type'] = mobile_type
 
         if mobile_type == 'mobile':
             return self.mobile_spider(data)
@@ -373,6 +381,32 @@ class Servers(SRH):
         finally:
             return json_str
 
+    def get_mobile_type(self, phone, cfg_path = 'db.conf'):
+        conf = ConfigParser.ConfigParser()
+        conf.read(cfg_path)
+        apikey = conf.get('apikey', 'apikey')
+
+        url = 'http://apis.baidu.com/apistore/mobilenumber/mobilenumber?phone=' + str(phone)
+        req = urllib2.Request(url)
+        req.add_header("apikey", "668786c7da22ae7e7e90607112a5858a")
+        resp = urllib2.urlopen(req)
+        content = resp.read()
+        if (content):
+            print(content)
+            json_content = json.loads(content)
+            if json_content['errNum'] == 0:
+                mobile_type = json_content['retData']['supplier']
+                if mobile_type == u'移动':
+                    return 0, 'mobile'
+                elif mobile_type == u'联通':
+                    return 0, 'unicom'
+                elif mobile_type == u'电信':
+                    return 0, 'telecom'
+                else:
+                    return 1, '类型不对'
+            else:
+                return 1, json_content['retMsg']
+
 def main(cfg_path = 'db.conf'):
     """
     启动服务端程序，等待客户端调用
@@ -385,7 +419,7 @@ def main(cfg_path = 'db.conf'):
     print conf.sections()
 
     host = conf.get('server', 'host')
-    host = "localhost"
+    # host = 'localhost'
     port = int(conf.get('server', 'port'))
     addr = (host, port)
 
