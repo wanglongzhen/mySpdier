@@ -56,7 +56,6 @@ class TelecomSpider(Union):
         self.ses = requests.session()
 
 
-
     def __exit__(self, exc_type, exc_val, exc_tb):
         Union.__exit__(self.exc_type, exc_val, exc_tb)
 
@@ -81,20 +80,56 @@ class TelecomSpider(Union):
             #点击登录
             self.driver.find_element_by_id('loginbtn').click()
 
-            self.waiter_fordisplayed(self.driver, 'loginShow')
+            self.waiter_fordisplayed(self.driver, 'tologinId')
+
+            #找到页面中详单查询的URL，然后跳转
+            detail_url = self.driver.find_element_by_xpath('//span[@class="span_font_a"]/a[text()="上网详单"]').get_attribute('href')
+            self.driver.get(detail_url)
+
+            #跳转后确实当前的TAB页为清单查询页
+            if self.waiter_fordisplayed(self.driver, 'billing2') == False:
+                self.logger(u'tab页清单查询没有加载成功')
+            self.driver.find_element_by_id('billing2').click()
+            
+            self.waiter_fordisplayed(self.driver, 'orderListId')
+            self.driver.find_element_by_id('billing2').find_element_by_xpath('//option[@value="1"]').click()
+            self.driver.find_element_by_id('queryId').click()
+
+
+            #找到导航栏，移动到费用TAB
+            # for item in self.driver.find_elements_by_xpath('//div[@class="meun_down z222"]/ul/li[starts-with(@class, "down")]'):
+            #     if u'费用' in item.text:
+            #         ActionChains(self.driver).move_to_element(item).perform()
+            #         pass
+
 
             #移动到业务btn下
             # ActionChains(self.driver).move_to_element(self.driver.find_element_by_xpath('//li[@class="down_05"]')).perform()
 
             self.detail_url = 'http://js.189.cn/service/bill?tabFlag=billing4'
             self.ses = requests.Session()
+            print self.driver.get_cookies()
             for cookie in self.driver.get_cookies():
                 self.ses.cookies.set(cookie['name'], cookie['value'])
                 self.logger.info(u'获取半年账单数据，设置请求前的cookie。 ' + cookie['name'] + ": " + cookie['value'])
 
+            self.call_url = 'http://js.189.cn/queryVoiceMsgAction.action'
             post_data = {}
 
-            s = self.ses.post('http://js.189.cn/mobileInventoryAction.action')
+            post_data['inventoryVo.accNbr'] = '18115606158'
+            post_data['inventoryVo.getFlag'] = '0'
+            post_data['inventoryVo.begDate'] = '20161001'
+            post_data['inventoryVo.endDate'] = '20161013'
+            post_data['inventoryVo.family'] = '4'
+            post_data['inventoryVo.accNbr97'] = ''
+            post_data['inventoryVo.productId'] = '4'
+            post_data['inventoryVo.acctName'] = '18115606158'
+
+
+            ret = self.ses.post(self.call_url, data = json.dumps(post_data))
+            print ret.text
+
+
 
         except Exception, e:
             print traceback.print_exc()
