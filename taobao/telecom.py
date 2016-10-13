@@ -83,14 +83,18 @@ class TelecomSpider(Union):
 
             self.waiter_fordisplayed(self.driver, 'loginShow')
 
-            ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('vec_servpasswd')).perform()
+            #移动到业务btn下
+            # ActionChains(self.driver).move_to_element(self.driver.find_element_by_xpath('//li[@class="down_05"]')).perform()
 
-            self.detail_url = 'http://js.189.cn/service/bill?tabFlag=billing1'
+            self.detail_url = 'http://js.189.cn/service/bill?tabFlag=billing4'
             self.ses = requests.Session()
             for cookie in self.driver.get_cookies():
                 self.ses.cookies.set(cookie['name'], cookie['value'])
                 self.logger.info(u'获取半年账单数据，设置请求前的cookie。 ' + cookie['name'] + ": " + cookie['value'])
 
+            post_data = {}
+
+            s = self.ses.post('http://js.189.cn/mobileInventoryAction.action')
 
         except Exception, e:
             print traceback.print_exc()
