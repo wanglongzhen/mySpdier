@@ -87,6 +87,15 @@ class TelecomSpider(Union):
 
             self.get_sms_datail()
 
+            # #跳转后确实当前的TAB页为清单查询页
+            # if self.waiter_fordisplayed(self.driver, 'billing2') == False:
+            #     self.logger(u'tab页清单查询没有加载成功')
+            # self.driver.find_element_by_id('billing2').click()
+            #
+            # self.waiter_fordisplayed(self.driver, 'orderListId')
+            # self.driver.find_element_by_id('billing2').find_element_by_xpath('//option[@value="1"]').click()
+            # self.driver.find_element_by_id('queryId').click()
+
         except Exception, e:
             print traceback.print_exc()
             self.track_back_err_print(sys.exc_info())
@@ -96,29 +105,38 @@ class TelecomSpider(Union):
 
 
     def get_call_detail(self):
+            #移动到业务btn下
+            # ActionChains(self.driver).move_to_element(self.driver.find_element_by_xpath('//li[@class="down_05"]')).perform()
 
-        # 登录成功后的操作，取用户的话单和基本信息
-        # 找到页面中详单查询的URL，然后跳转
-        detail_url = self.driver.find_element_by_xpath('//span[@class="span_font_a"]/a[text()="上网详单"]').get_attribute(
-            'href')
-        self.driver.get(detail_url)
+            self.detail_url = 'http://js.189.cn/service/bill?tabFlag=billing4'
+            self.ses = requests.Session()
+            print self.driver.get_cookies()
+            for cookie in self.driver.get_cookies():
+                self.ses.cookies.set(cookie['name'], cookie['value'])
+                self.logger.info(u'获取半年账单数据，设置请求前的cookie。 ' + cookie['name'] + ": " + cookie['value'])
 
-        self.waiter_fordisplayed(self.driver, 'orderListId')
+            # 登录成功后的操作，取用户的话单和基本信息
+            # 找到页面中详单查询的URL，然后跳转
+            detail_url = self.driver.find_element_by_xpath('//span[@class="span_font_a"]/a[text()="上网详单"]').get_attribute(
+                'href')
+            self.driver.get(detail_url)
 
-        if self.waiter_for_displayed_xpath(self.driver, '//select[@id="orderListId"]/option[@value="1"]') == False:
-            self.logger.info(u'没有找到元素' + '//select[@id="orderListId"]/option[@value="1"]')
-            pass
+            self.waiter_fordisplayed(self.driver, 'orderListId')
 
-        #1通话
-        #2短信
-        self.driver.find_element_by_xpath('//select[@id="orderListId"]/option[@value="1"]').click()
-        time.sleep(1)
-        self.driver.find_element_by_id('queryId').click()
+            if self.waiter_for_displayed_xpath(self.driver, '//select[@id="orderListId"]/option[@value="1"]') == False:
+                self.logger.info(u'没有找到元素' + '//select[@id="orderListId"]/option[@value="1"]')
+                pass
 
-        #取内容
-        self.driver.find_element_by_id('uniMsgDiv')
+            #1通话
+            #2短信
+            self.driver.find_element_by_xpath('//select[@id="orderListId"]/option[@value="1"]').click()
+            time.sleep(1)
+            self.driver.find_element_by_id('queryId').click()
 
-        self.waiter_fordisplayed(self.driver, 'vDiv')
+            #取内容
+            self.driver.find_element_by_id('uniMsgDiv')
+
+            self.waiter_fordisplayed(self.driver, 'vDiv')
 
 
     def waiter_for_displayed_xpath(self, browser, selector):
