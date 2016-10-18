@@ -51,7 +51,8 @@ class Servers(SRH):
         while True:
             flag = True
             recv_data = self.request.recv(1024)
-            self.logger.info(u'客户端' + str(self.client_address) + u' 接收到的数据：' + recv_data)
+            self.logger.info(u'客户端' + str(self.client_address) + u' 接收到的数据：')
+            self.logger.info(recv_data)
             data = self.json_value(recv_data)
             ret, flag = self.spider(data)
             response = json.dumps(ret)
@@ -79,6 +80,9 @@ class Servers(SRH):
         :param mobile:
         :return:
         """
+
+        self.logger.info(u'spider 函数开始爬去过程， 参数：')
+        self.logger.info(data)
 
         param = self.get_value_by_data(data, 'param')
         if param == None:
