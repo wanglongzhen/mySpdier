@@ -82,49 +82,60 @@ class TelecomSpider(Union):
 
             self.waiter_fordisplayed(self.driver, 'tologinId')
 
-            #找到页面中详单查询的URL，然后跳转
-            detail_url = self.driver.find_element_by_xpath('//span[@class="span_font_a"]/a[text()="上网详单"]').get_attribute('href')
-            self.driver.get(detail_url)
+            #抓电话信息
+            self.get_call_detail()
 
-
-            #找到导航栏，移动到费用TAB
-            # for item in self.driver.find_elements_by_xpath('//div[@class="meun_down z222"]/ul/li[starts-with(@class, "down")]'):
-            #     if u'费用' in item.text:
-            #         ActionChains(self.driver).move_to_element(item).perform()
-            #         pass
-
-
-            # ActionChains(self.driver).move_to_element(self.driver.find_element_by_id('vec_servpasswd')).perform()
-
-            self.detail_url = 'http://js.189.cn/service/bill?tabFlag=billing3'
-            self.ses = requests.Session()
-            print self.driver.get_cookies()
-            for cookie in self.driver.get_cookies():
-                self.ses.cookies.set(cookie['name'], cookie['value'])
-                self.logger.info(u'获取半年账单数据，设置请求前的cookie。 ' + cookie['name'] + ": " + cookie['value'])
-
-            self.call_url = 'http://js.189.cn/queryVoiceMsgAction.action'
-            post_data = {}
-
-            post_data['inventoryVo.accNbr'] = '18115606158'
-            post_data['inventoryVo.getFlag'] = '0'
-            post_data['inventoryVo.begDate'] = '20161001'
-            post_data['inventoryVo.endDate'] = '20161013'
-            post_data['inventoryVo.family'] = '4'
-            post_data['inventoryVo.accNbr97'] = ''
-            post_data['inventoryVo.productId'] = '4'
-            post_data['inventoryVo.acctName'] = '18115606158'
-
-
-            ret = self.ses.post(self.call_url, data = json.dumps(post_data))
-            print ret.text
-
-
+            self.get_sms_datail()
 
         except Exception, e:
             print traceback.print_exc()
             self.track_back_err_print(sys.exc_info())
 
+    def get_sms_detail(self):
+        pass
+
+
+    def get_call_detail(self):
+
+        # 登录成功后的操作，取用户的话单和基本信息
+        # 找到页面中详单查询的URL，然后跳转
+        detail_url = self.driver.find_element_by_xpath('//span[@class="span_font_a"]/a[text()="上网详单"]').get_attribute(
+            'href')
+        self.driver.get(detail_url)
+
+        self.waiter_fordisplayed(self.driver, 'orderListId')
+
+        if self.waiter_for_displayed_xpath(self.driver, '//select[@id="orderListId"]/option[@value="1"]') == False:
+            self.logger.info(u'没有找到元素' + '//select[@id="orderListId"]/option[@value="1"]')
+            pass
+
+        #1通话
+        #2短信
+        self.driver.find_element_by_xpath('//select[@id="orderListId"]/option[@value="1"]').click()
+        time.sleep(1)
+        self.driver.find_element_by_id('queryId').click()
+
+        #取内容
+        self.driver.find_element_by_id('uniMsgDiv')
+
+        self.waiter_fordisplayed(self.driver, 'vDiv')
+
+
+    def waiter_for_displayed_xpath(self, browser, selector):
+        count = 0
+        while (True):
+            count = count + 1
+            if count > 2:
+                return False
+            try:
+                ui.WebDriverWait(browser, 5).until(lambda driver: driver.find_element_by_xpath(selector))
+                break
+            except Exception, e:
+                pass
+                print('元素没有展示' + selector)
+                self.logger.error(u'元素没有展示' + selector)
+
+        return True
 
     def waiter_fordisplayed(self, browser, element):
         count = 0
