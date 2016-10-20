@@ -147,6 +147,10 @@ class TelecomSpider(Union):
             else:
                 self.logger.info(u'没有出现输入查询条件的DIV，错误')
 
+            #循环6个月的日期
+            for begin, end in self.bill_date_list:
+                print begin, end
+
             #开始查询
             if self.waiter_for_displayed_id(self.driver, 'queryId') == False:
                 self.logger.info(u'queryId 没有加载，错误')
