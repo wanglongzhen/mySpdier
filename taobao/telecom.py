@@ -32,6 +32,9 @@ from selenium.webdriver.common.by import By
 import requests
 
 import traceback
+import datetime
+from dateutil.relativedelta import relativedelta
+import calendar
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -54,6 +57,10 @@ class TelecomSpider(Union):
         self.driver = webdriver.Chrome()
         self.driver.maximize_window()
         self.ses = requests.session()
+
+        #账单日期
+        self.bill_date_list = TelecomSpider.get_bill_date_list()
+
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -209,6 +216,36 @@ class TelecomSpider(Union):
                 self.logger.error(u'元素仍然展示' + element)
 
         return True
+
+    @staticmethod
+    def get_bill_date_list():
+        today = datetime.date.today()
+        bill_date_list = list(map(lambda delta: str(today + relativedelta(months=delta))[:7], range(-6, 1, 1)))
+
+        bill_date_tuple = []
+        for date in bill_date_list:
+            month_bill_date_tuple = TelecomSpider.get_begin_end_date(date)
+            bill_date_tuple.append(month_bill_date_tuple)
+
+        return bill_date_tuple
+
+    @staticmethod
+    def get_begin_end_date(bill_date):
+        """
+        根据输入的年月，输出当月的起始天数
+        :param bill_date: 2015-06
+        :return: ["2015-06-01", "2015-06-30"]
+        """
+        # 检验是否是当月
+        today = str(datetime.date.today())
+        current_ym = today[:7]
+        if current_ym == bill_date:
+            return bill_date + "-01", today
+
+        bd = list(map(int, bill_date.split("-")))
+        days = calendar.monthrange(*bd)
+
+        return bill_date + "-01", bill_date + "-" + str(days[1])
 
 
 if __name__ == '__main__':
