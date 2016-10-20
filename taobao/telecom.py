@@ -73,14 +73,14 @@ class TelecomSpider(Union):
             # self.driver.find_element_by_id('txtShowPwd').clear()
             self.driver.find_element_by_id('txtShowPwd').click()
 
-            self.waiter_fordisplayed(self.driver, 'txtPassword')
+            self.waiter_for_displayed_id(self.driver, 'txtPassword')
 
             self.driver.find_element_by_id('txtPassword').send_keys(self.passwd)
 
             #点击登录
             self.driver.find_element_by_id('loginbtn').click()
 
-            self.waiter_fordisplayed(self.driver, 'tologinId')
+            self.waiter_for_displayed_id(self.driver, 'tologinId')
 
             #抓电话信息
             self.get_call_detail()
@@ -88,11 +88,11 @@ class TelecomSpider(Union):
             self.get_sms_datail()
 
             # #跳转后确实当前的TAB页为清单查询页
-            # if self.waiter_fordisplayed(self.driver, 'billing2') == False:
+            # if self.waiter_for_displayed_id(self.driver, 'billing2') == False:
             #     self.logger(u'tab页清单查询没有加载成功')
             # self.driver.find_element_by_id('billing2').click()
             #
-            # self.waiter_fordisplayed(self.driver, 'orderListId')
+            # self.waiter_for_displayed_id(self.driver, 'orderListId')
             # self.driver.find_element_by_id('billing2').find_element_by_xpath('//option[@value="1"]').click()
             # self.driver.find_element_by_id('queryId').click()
 
@@ -101,7 +101,11 @@ class TelecomSpider(Union):
             self.track_back_err_print(sys.exc_info())
 
     def get_sms_detail(self):
-        pass
+        # 取短信的内容
+        self.driver.find_element_by_id('uniMsgDiv')
+
+        #取短信数据
+        self.driver.find_element_by_id('messgeTable')
 
 
     def get_call_detail(self):
@@ -121,22 +125,40 @@ class TelecomSpider(Union):
                 'href')
             self.driver.get(detail_url)
 
-            self.waiter_fordisplayed(self.driver, 'orderListId')
+            self.waiter_for_displayed_id(self.driver, 'orderListId')
 
             if self.waiter_for_displayed_xpath(self.driver, '//select[@id="orderListId"]/option[@value="1"]') == False:
                 self.logger.info(u'没有找到元素' + '//select[@id="orderListId"]/option[@value="1"]')
-                pass
 
             #1通话
             #2短信
             self.driver.find_element_by_xpath('//select[@id="orderListId"]/option[@value="1"]').click()
-            time.sleep(1)
+
+            #查询条件输入提示
+            if self.waiter_for_displayed_id('searchget') == True:
+                self.logger.info(u'页面加载完毕，提示输入查询条件，查询详细信息')
+            else:
+                self.logger.info(u'没有出现输入查询条件的DIV，错误')
+
+            #开始查询
+            if self.waiter_for_displayed_id(self.driver, 'queryId') == False:
+                self.logger.info(u'queryId 没有加载，错误')
             self.driver.find_element_by_id('queryId').click()
 
-            #取内容
-            self.driver.find_element_by_id('uniMsgDiv')
 
-            self.waiter_fordisplayed(self.driver, 'vDiv')
+            #错误展示div
+            if self.waiter_for_displayed_id('errorShow') == True:
+                self.logger.info(u'页面加载完毕，提示输入查询条件，查询详细信息')
+
+            #数据div
+            if self.waiter_for_displayed_id('messgeDiv') == True:
+                self.logger.info(u'话单数据加载完毕')
+
+            #取语音清单内容
+            self.driver.find_element_by_id('vDiv')
+
+
+            self.waiter_for_displayed_id(self.driver, 'vDiv')
 
 
     def waiter_for_displayed_xpath(self, browser, selector):
@@ -155,7 +177,7 @@ class TelecomSpider(Union):
 
         return True
 
-    def waiter_fordisplayed(self, browser, element):
+    def waiter_for_displayed_id(self, browser, element):
         count = 0
         while (True):
             count = count + 1
@@ -168,6 +190,23 @@ class TelecomSpider(Union):
                 pass
                 print('元素没有展示' + element)
                 self.logger.error(u'元素没有展示' + element)
+
+        return True
+
+
+    def waiter_for_not_displayed_id(self, browser, element):
+        count = 0
+        while (True):
+            count = count + 1
+            if count > 2:
+                return False
+            try:
+                ui.WebDriverWait(browser, 5).until(lambda driver: not driver.find_element_by_id(element).is_displayed())
+                break
+            except Exception, e:
+                pass
+                print('元素仍然展示' + element)
+                self.logger.error(u'元素仍然展示' + element)
 
         return True
 
