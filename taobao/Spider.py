@@ -152,6 +152,7 @@ class UnicomSpider(Union):
                 print traceback.print_exc()
                 print("登录成功")
 
+            self.recordErrImg()
 
             self.driver.find_element_by_xpath("//input[@id='login1']").click()
             self.waiter_fordisplayed(self.driver, 'nickSpan')
@@ -311,7 +312,8 @@ class UnicomSpider(Union):
             call_dan, callsms = self.get_call_dan(self.driver, self.phone_num)
         except Exception, e:
             print e
-            self.track_back_err_print(sys.exc_info())
+            self.recordErrImg()
+            self.logger.info(traceback.format_exc())
 
         #存数据到数据库中\
         self.logger.info(u'保存用户的信息到数据库，开始' + self.phone_num)
@@ -433,7 +435,8 @@ class UnicomSpider(Union):
             self.waiter_displayed(driver, 'smsmmsResultTab')
         except:
             self.logger.info(u'跳转短信详单页面报错')
-            self.track_back_err_print(sys.exc_info())
+            self.recordErrImg()
+            self.logger.info(traceback.format_exc())
 
         for item in call_dan_maths:
             try:

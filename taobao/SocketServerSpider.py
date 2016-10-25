@@ -101,6 +101,14 @@ class Servers(SRH):
         except:
             print('调用apistore接口判断电话号码运行商错误')
             self.logger.info(u'客户端' + str(self.client_address) + u' 调用apistore接口判断电话号码运行商错误')
+            response = {}
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = mobile_type
+            response['timeout'] = 15
+            response['img_flag'] = 0
+            return response, True
+
         self.logger.info(u'客户端' + str(self.client_address) + u' 获取运营商的类型' + mobile_type)
         data['param']['mobile_type'] = mobile_type
 
@@ -409,9 +417,18 @@ class Servers(SRH):
         req.add_header("apikey", "668786c7da22ae7e7e90607112a5858a")
         resp = urllib2.urlopen(req)
         content = resp.read()
+
+        json_content = json.loads(content)
+        while (json_content['errNum'] != 0):
+            resp = urllib2.urlopen(req)
+            content = resp.read()
+            json_content = json.loads(content)
+            time.sleep(2)
+
         if (content):
             print(content)
             json_content = json.loads(content)
+
             if json_content['errNum'] == 0:
                 mobile_type = json_content['retData']['supplier']
                 if mobile_type == u'移动':

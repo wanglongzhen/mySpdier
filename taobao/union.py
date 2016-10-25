@@ -19,6 +19,9 @@ import sys
 import ConfigParser
 import MySQLdb
 import traceback
+import os
+import codecs
+import platform
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -69,21 +72,23 @@ class Union(object):
             "Content-Type": r"application/x-www-form-urlencoded;charset=UTF-8"
         }
 
-        # headers = {'Accept': '*/*',
-        #            'Accept-Encoding': 'gzip, deflate, sdch',
-        #            'Accept-Language': 'en-US,en;q=0.8',
-        #            'Cache-Control': 'max-age=0',
-        #            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36'
-        #            }
-        #
-        # for key, value in enumerate(headers):
-        #     webdriver.DesiredCapabilities.PHANTOMJS['phantomjs.page.customHeaders.{}'.format(key)] = value
+        #读取日志的路径
+        cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
+        cfg_path = os.path.join(cur_script_dir, "db.conf")
+        cfg_reder = ConfigParser.ConfigParser()
+        cfg_reder.readfp(codecs.open(cfg_path, "r", "utf_8"))
 
-        # service_args = [
-        #     '--proxy=127.0.0.1:9999',
-        #     '--proxy-type=socks5',
-        # ]
-        # driver = webdriver.PhantomJS(service_args=service_args)
+        self._SECNAME = "LOGPATH"
+        if platform.platform().find("windows") != -1 or platform.platform().find("Windows") != -1:
+            self._OPTNAME = "WINDOWS_LOGDIR"
+        else:
+            self._OPTNAME = "LINUX_LOGDIR"
+        self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
+
+        self.imgroot = os.path.join(self._LOGROOT, 'img')
+        # 如果目录不存在，则创建一个目录
+        if not os.path.isdir(self.imgroot):
+            os.makedirs(self.imgroot)
 
         # 2.2 创建带上述头信息的会话
         self.ses = requests.Session()
@@ -209,18 +214,21 @@ class Union(object):
             cursor.close()
             conn.close()
 
-    def track_back_err_print(self, info):
+    def recordErrImg(self):
         """
-        格式化输出异常信息
-        :param info:
+        记录driver当前的图片
         :return:
         """
-        err_info = str(info[0]) + ": " + str(info[1])
-        self.logger.info(err_info)
-        for file, lineno, function, text in traceback.extract_tb(info[2]):
-            self.logger.info(file+"line:" + str(lineno) + "in" + str(function))
-            self.logger.info(text)
+        dst_file = os.path.join(self.imgroot, str(self.phone_num) +  '_' + self.get_timestamp() + '.jpg')
 
+        try:
+            if self.driver != None:
+                self.driver.save_screenshot(dst_file)
+                return True
+        except:
+            self.logger.info(traceback.format_exc())
+
+        return False
 
     @staticmethod
     def get_timestamp():
@@ -270,5 +278,19 @@ class Union(object):
 
         return None
 
+
+    def track_back_err_print(self, info):
+        """
+        格式化输出异常信息
+        :param info:
+        :return:
+        """
+        err_info = str(info[0]) + ": " + str(info[1])
+        self.logger.info(err_info)
+        for file, lineno, function, text in traceback.extract_tb(info[2]):
+            self.logger.info(file + "line:" + str(lineno) + "in" + str(function))
+            self.logger.info(text)
+
 if __name__ == '__main__':
-    pass
+    union = Union('dd')
+
