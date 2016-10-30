@@ -127,7 +127,8 @@ class Union(object):
         except Exception, e:
             print traceback.print_exc()
             self.logger.info(u'保存' + table + u'表失败')
-            self.track_back_err_print(sys.exc_info())
+            self.logger.info(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
 
 
     def save_calls(self, task_id, phone_num, data):
@@ -143,7 +144,8 @@ class Union(object):
             self.save_db( task_id, phone_num, table, fields, data)
         except Exception, e:
             self.logger.info(u'保存' + table + u'表失败')
-            self.track_back_err_print(sys.exc_info())
+            self.logger.info(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
 
 
     def save_sms(self, task_id, phone_num, data):
@@ -159,7 +161,8 @@ class Union(object):
             self.save_db( task_id, phone_num, table, fields, data)
         except Exception, e:
             self.logger.info(u'保存' + table + u'表失败')
-            self.track_back_err_print(sys.exc_info())
+            # self.track_back_err_print(sys.exc_info())
+            self.logger.info(traceback.format_exc())
 
 
     def save_basic(self, task_id, phone_num, data):
@@ -175,7 +178,8 @@ class Union(object):
             self.save_db( task_id, phone_num, table, fields, data)
         except Exception, e:
             self.logger.info(u'保存' + table + u'表失败')
-            self.track_back_err_print(sys.exc_info())
+            self.logger.info(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
 
 
     def save_db(self, task_id, phone_num, table, fields, data):

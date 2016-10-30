@@ -74,7 +74,8 @@ class UnicomSpider(Union):
             try:
                 message = self.driver.find_element_by_xpath('//span[@class="error left mt10mf32"]').text
             except:
-                pass
+                self.recordErrImg()
+                self.logger.info(traceback.format_exc())
 
             print("登录失败")
             return 2, '登录跳转时失败'
@@ -108,6 +109,8 @@ class UnicomSpider(Union):
 
                 self.logger.info(u'登录联通,输入密码： ' + self.phone_num + u'， 密码： ')
             except Exception, e:
+                self.recordErrImg()
+                self.logger.info(traceback.format_exc())
                 return False, u'登录页面加载失败'
 
             try:
@@ -149,6 +152,8 @@ class UnicomSpider(Union):
                     # print("输入验证码")
                     # self.logger.error(u'登录失败，输入验证码' + self.phone_num)
             except Exception, e:
+                self.recordErrImg()
+                self.logger.info(traceback.format_exc())
                 print traceback.print_exc()
                 print("登录成功")
 
@@ -162,11 +167,13 @@ class UnicomSpider(Union):
                 try:
                     message = self.driver.find_element_by_xpath('//span[@class="error left mt35mf32"]').text
                 except:
-                    pass
+                    self.recordErrImg()
+                    self.logger.info(traceback.format_exc())
                 try:
                     message = self.driver.find_element_by_xpath('//span[@class="error left mt10mf32"]').text
                 except:
-                    pass
+                    self.recordErrImg()
+                    self.logger.info(traceback.format_exc())
 
                 print("登录失败")
                 return 2, message
@@ -296,6 +303,8 @@ class UnicomSpider(Union):
 
             self.logger.info(u'获取个人信息: realname: ' + real_name + u' idcard : ' + id_card + u' addr : ' + addr + u'usersource: ' + usersource)
         except Exception, e:
+            self.recordErrImg()
+            self.logger.info(traceback.format_exc())
             self.logger.error(u'获取个人信息失败: ' + self.phone_num + e)
             pass
 

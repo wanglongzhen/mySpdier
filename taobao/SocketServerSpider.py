@@ -140,7 +140,9 @@ class Servers(SRH):
         try:
             value = data[key]
         except Exception, e:
-            pass
+            self.logger.info(u'json字符串解析失败')
+            self.logger.info(traceback.format_exc())
+
 
         return value
 
@@ -383,6 +385,9 @@ class Servers(SRH):
         except Exception, e:
             print e
             print traceback.print_exc()
+            self.logger.info(u'n字符串不是json格式')
+            self.logger.info(traceback.format_exc())
+
             # self.logger.info(u'解析数据格式失败，客户端发送数据不是json格式')
         else:
             return None
@@ -402,6 +407,8 @@ class Servers(SRH):
         except Exception, e:
             print e
             print traceback.print_exc()
+            self.logger.info(u'json对象转json字符串异常')
+            self.logger.info(traceback.format_exc())
         else:
             return None
         finally:
@@ -423,7 +430,7 @@ class Servers(SRH):
             resp = urllib2.urlopen(req)
             content = resp.read()
             json_content = json.loads(content)
-            time.sleep(2)
+            time.sleep(1)
 
         if (content):
             print(content)
