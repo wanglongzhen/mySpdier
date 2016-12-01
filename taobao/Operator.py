@@ -100,6 +100,52 @@ class Operator(object):
             self.write_log(traceback.format_exc())
             # self.track_back_err_print(sys.exc_info())
 
+    def save_calls(self, task_id, phone_num, data):
+        """
+        存通话信息
+        :param data:
+        :return:
+        """
+
+        table = 'calls'
+        fields = ['call_time', 'receive_phone', 'trade_addr', 'trade_type', 'trade_time', 'call_type']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            self.write_log(traceback.format_exc())
+
+    def save_sms(self, task_id, phone_num, data):
+        """
+        存短信信息
+        :param data:
+        :return:
+        """
+
+        table = 'sms'
+        fields = ['send_time', 'receive_phone', 'trade_way']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            # self.track_back_err_print(sys.exc_info())
+            self.write_log(traceback.format_exc())
+
+    def save_basic(self, task_id, phone_num, data):
+        """
+        存基本信息
+        :param data:
+        :return:
+        """
+
+        table = 'basic'
+        fields = ['real_name', 'user_source', 'addr', 'id_card', 'phone_remain']
+        try:
+            self.save_db( task_id, phone_num, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            self.write_log(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
 
     def save_db(self, task_id, phone_num, table, fields, data):
         """
@@ -159,7 +205,7 @@ class Operator(object):
                 self.driver.save_screenshot(dst_file)
                 return True
         except:
-            self.logger.info(traceback.format_exc())
+            self.write_log(traceback.format_exc())
 
         return False
 
