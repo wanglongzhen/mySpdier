@@ -17,6 +17,7 @@ import calendar
 import re
 import codecs
 import platform
+from comm_log import comm_log
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -43,10 +44,14 @@ class GetConn(object):
         return conn
 
 class Operator(object):
-    def __init__(self):
-        self.init_log()
+    def __init__(self, phone_number, phone_passwd):
+        self.phone_number = phone_number
+        self.phone_passwd = phone_passwd
 
-    def init_log(self, task_id):
+        self.task_id = self.get_task_no(self.phone_number)
+        self.init_log(self.phone_number)
+
+    def init_log(self, phone_number):
         #读取日志的路径
         cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
         cfg_path = os.path.join(cur_script_dir, "db.conf")
@@ -67,18 +72,22 @@ class Operator(object):
         if not os.path.isdir(log_path):
             os.makedirs(log_path)
 
+        self.logger = comm_log(phone_number, logpath=log_path)
+
         self.imgroot = os.path.join(self._LOGROOT, 'img')
         # 如果目录不存在，则创建一个目录
         if not os.path.isdir(self.imgroot):
             os.makedirs(self.imgroot)
 
-    def get_task_no(self, phone_num):
+        return self.logger
+
+    def get_task_no(self, phone_number):
         """
         根据手机号和当前的时间构造一个task_no
         :param user:
         :return:
         """
-        task_no = str(phone_num) + "|" + self.get_timestamp()
+        task_no = str(phone_number) + "|" + self.get_timestamp()
 
         return task_no
 
@@ -261,5 +270,23 @@ class Operator(object):
         return None
 
 
+    def deco(arg):
+        def _deco(func):
+            def __deco(self, *args, **kwargs):
+                print("before %s called [%s]." % (func.__name__, arg))
+                self.write_log('')
+                func(self, *args, **kwargs)
+                print("  after %s called [%s]." % (func.__name__, arg))
+
+            return __deco
+
+        return _deco
+
+
+    @deco('log function')
+    def test(self, phone_number, phone_passwd):
+        print "this is test funct"
+
 if __name__ == '__main__':
-    operator = Operator()
+    operator = Operator('18115606158', '861357')
+    operator.test('phone_number', 'phone_passwd')
