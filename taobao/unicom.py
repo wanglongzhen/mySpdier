@@ -76,12 +76,12 @@ class Unicom(Operator):
 
         try:
             self.driver.find_element_by_xpath("//input[@id='userName']").clear()
-            self.driver.find_element_by_xpath("//input[@id='userName']").send_keys(self.phone_num)
+            self.driver.find_element_by_xpath("//input[@id='userName']").send_keys(phone_number)
 
             self.logger.info(u'输入用户名： ' + phone_number)
 
             self.driver.find_element_by_xpath("//input[@id='userPwd']").clear()
-            self.driver.find_element_by_xpath("//input[@id='userPwd']").send_keys(self.passwd)
+            self.driver.find_element_by_xpath("//input[@id='userPwd']").send_keys(phone_passwd)
 
             self.logger.info(u'输入密码： ' + phone_passwd)
         except Exception, e:
