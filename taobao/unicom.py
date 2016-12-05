@@ -45,8 +45,10 @@ class Unicom(Operator):
     def init_driver(self):
         try:
             # self.driver = webdriver.PhantomJS()
-            self.driver = webdriver.Chrome()
+            # self.driver = webdriver.Chrome()
+            self.driver = webdriver.Firefox()
             self.driver.maximize_window()
+
             self.driver.delete_all_cookies()
         except Exception, e:
             self.write_log(traceback.format_exc())
@@ -68,6 +70,7 @@ class Unicom(Operator):
         self.open_login_page(self.login_url, self.phone_number, self.phone_passwd)
 
         self.sumbit_login()
+
 
 
     def open_login_page(self, login_url, phone_number, phone_passwd):
@@ -131,7 +134,16 @@ class Unicom(Operator):
         return True
 
     def spider(self):
-        pass
+        wait = ui.WebDriverWait(self.driver, 10)
+        wait.until(lambda driver: self.driver.find_element_by_class_name('mall'))
+
+        myUnionUrl = 'https://uac.10010.com/cust/userinfo/userInfoInit'
+        self.driver.get(myUnionUrl)
+
+        if self.waiter_fordisplayed(self.driver, 'balance') == False:
+            self.logger.info(u'跳转我的联通页面失败' + self.phone_num)
+        else:
+            self.logger.info(u'跳转我的联通页面成功' + self.phone_num)
 
     def save_data(self):
         pass
