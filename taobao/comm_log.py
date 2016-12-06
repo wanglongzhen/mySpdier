@@ -109,7 +109,7 @@ class SafeRotatingFileHandler(TimedRotatingFileHandler):
 
 
 class CommLog(object):
-    def __init__(self, procnum, rotatetype=0):
+    def __init__(self, procnum, rotatetype=0, logpath = None):
         """
         指定进程号与回滚类型
         :param procnum: 区分进程号，当多实例时，互不影响
@@ -137,7 +137,11 @@ class CommLog(object):
         cfg_reder = ConfigParser.ConfigParser()
         cfg_reder.readfp(codecs.open(cfg_path, "r", "utf_8"))
         # 日志路径配置
-        self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
+        if logpath != None:
+            self._LOGROOT = logpath
+        else:
+            self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
+
         # 日志回滚配置
         self._LOGWHEN = cfg_reder.get(self._TIME_SECNAME, "WHEN")
         self._LOGINTVAL = int(cfg_reder.get(self._TIME_SECNAME, "INTVAL"))
@@ -263,9 +267,9 @@ class CommLog(object):
         self._LOGGER_CRITICAL.critical(strmsg)
 
 
-def comm_log(procnum):
+def comm_log(procnum, logpath = None):
     if procnum not in CommLog_procnum_dict:
-        logger = CommLog(procnum)
+        logger = CommLog(procnum, logpath = logpath)
         CommLog_procnum_dict[procnum] = logger
 
     return CommLog_procnum_dict[procnum]
