@@ -141,6 +141,7 @@ class CommLog(object):
             self._LOGROOT = logpath
         else:
             self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
+
         # 日志回滚配置
         self._LOGWHEN = cfg_reder.get(self._TIME_SECNAME, "WHEN")
         self._LOGINTVAL = int(cfg_reder.get(self._TIME_SECNAME, "INTVAL"))
@@ -266,9 +267,10 @@ class CommLog(object):
         self._LOGGER_CRITICAL.critical(strmsg)
 
 
-def comm_log(procnum, logpath=None):
+
+def comm_log(procnum, logpath = None):
     if procnum not in CommLog_procnum_dict:
-        logger = CommLog(procnum, logpath=logpath)
+        logger = CommLog(procnum, logpath = logpath)
         CommLog_procnum_dict[procnum] = logger
 
     return CommLog_procnum_dict[procnum]
