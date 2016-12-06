@@ -336,21 +336,6 @@ class Unicom(Operator):
 
         if len(call_list) > 0:
             return call_list
-            pass
-        # # 2. 下载通话记录信息，保存至file_path
-        # file_name = "{tid}_call_log_{bill_date}.xls".format(tid=self.task_id, bill_date=bill_date)
-        # file_path = os.path.join(self.parent_path, "output", self.task_id, file_name)
-        # if set_date_success:
-        #     self.save_data(self.call_url, file_path, keyword="call")
-        #
-        # if set_date_success is False:
-        #     self.un_success.append(("call", bill_date))
-        #     self.write_log(bill_date + u"不存在通话记录信息！或网络问题设置账单日期失败!")
-        #
-        # if set_date_success is None:
-        #     self.un_success.append(("call", bill_date))
-        #     self.write_log(u"[3004] 无法设定通话详单的账单日期")
-        #     self.write_log(u"通话记录信息获取失败!")
 
     def get_smss_info(self, bill_date):
         """
@@ -558,7 +543,8 @@ class Unicom(Operator):
         # 3. 传送post data到指定信息页面
         try:
             strtsmp = self.get_timestamp()
-            res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+            # res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+            res = self.post(url.format(strtsmp=strtsmp), data=post_data)
             call_list.extend(self.get_call_by_page_detail(res.json()))
             self.write_log(u"查询数据" + str(bill_date) + "月, 查询第1页...")
         except Exception as e:
@@ -577,7 +563,8 @@ class Unicom(Operator):
                     try:
                         post_data['pageNo'] = str(page)
                         strtsmp = self.get_timestamp()
-                        res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+                        # res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+                        res = self.post(url.format(strtsmp=strtsmp), data=post_data)
                         call_list.extend(self.get_call_by_page_detail(res.json()))
                         self.write_log(u"查询数据" + str(bill_date) + "月, 查询第" + str(page) + "页...， 总数据页数： " + str(total_pages))
                     except Exception as e:
@@ -709,6 +696,13 @@ class Unicom(Operator):
         else:
             self.logger.warning(u"登录联通官网失败")
             return False, "0003"
+
+
+    def post(self, url, post_data):
+        self.ses.post(url, post_data)
+
+    def get(self, url):
+        self.ses.post(url)
 
     def save_data(self):
         pass
