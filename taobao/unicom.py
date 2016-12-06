@@ -169,7 +169,9 @@ class Unicom(Operator):
                 print item
                 print personal_info[item]
 
-        bill_info = self.get_bill_info()
+        # bill_info = self.get_bill_info()
+
+        call_info = self.get_call_info()
         print 'u'
 
 
@@ -284,13 +286,26 @@ class Unicom(Operator):
         bill_date_list = list(map(lambda delta: str(today + relativedelta(months=delta))[:7], range(-6, 1, 1)))
 
 
-        for bill_date in bill_date_list[:-1]:
-            ret = self.get_bills_info(bill_date)
-            bill_info.append(ret)
+        # for bill_date in bill_date_list[:-1]:
+        #     ret = self.get_bills_info(bill_date)
+        #     bill_info.append(ret)
+
+        for bill_date in bill_date_list[1:]:
+            self.get_calls_info(bill_date)
+            # self.get_smss_info(bill_date)
 
         return bill_info
 
+    def get_call_info(self):
+        bill_info = list()
+        today = datetime.date.today()
+        bill_date_list = list(map(lambda delta: str(today + relativedelta(months=delta))[:7], range(-6, 1, 1)))
 
+        for bill_date in bill_date_list[1:]:
+            self.get_calls_info(bill_date)
+            # self.get_smss_info(bill_date)
+
+        return bill_info
 
     def get_calls_info(self, bill_date):
         """
