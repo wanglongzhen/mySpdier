@@ -181,16 +181,18 @@ class Unicom(Operator):
 
     def spider(self):
 
-        #获取数据
-        personal_info = self.get_personal_info()
-        if len(personal_info) != 0:
-            print personal_info
-            for item in personal_info:
-                print item
-                print personal_info[item]
+        #个人信息
+        # personal_info = self.get_personal_info()
+        # if len(personal_info) != 0:
+        #     print personal_info
+        #     for item in personal_info:
+        #         print item
+        #         print personal_info[item]
 
+        #账单
         # bill_info = self.get_bill_info()
 
+        #通话
         call_info = self.get_call_info()
         print 'u'
 
@@ -301,13 +303,9 @@ class Unicom(Operator):
         bill_date_list = list(map(lambda delta: str(today + relativedelta(months=delta))[:7], range(-6, 1, 1)))
 
 
-        # for bill_date in bill_date_list[:-1]:
-        #     ret = self.get_bills_info(bill_date)
-        #     bill_info.append(ret)
-
-        for bill_date in bill_date_list[1:]:
-            self.get_calls_info(bill_date)
-            # self.get_smss_info(bill_date)
+        for bill_date in bill_date_list[:-1]:
+            ret = self.get_bill_by_month(bill_date)
+            bill_info.append(ret)
 
         return bill_info
 
@@ -317,12 +315,12 @@ class Unicom(Operator):
         bill_date_list = list(map(lambda delta: str(today + relativedelta(months=delta))[:7], range(-6, 1, 1)))
 
         for bill_date in bill_date_list[1:]:
-            self.get_calls_info(bill_date)
+            self.get_call_by_month(bill_date)
             # self.get_smss_info(bill_date)
 
         return bill_info
 
-    def get_calls_info(self, bill_date):
+    def get_call_by_month(self, bill_date):
         """
         爬取指定日期的通话记录
         :param bill_date: 需要爬取的月份，例："2016-05"
@@ -334,22 +332,25 @@ class Unicom(Operator):
         search_url2 = "http://iservice.10010.com/e3/static/query/callDetail?_={strtsmp}&menuid=000100030001"
 
         # 1. 设置查询的账单日期
-        set_date_success = self.set_date(search_url, search_url2, bill_date, keyword="call")
+        call_list = self.get_call_by_month_detail(search_url, search_url2, bill_date)
 
-        # 2. 下载通话记录信息，保存至file_path
-        file_name = "{tid}_call_log_{bill_date}.xls".format(tid=self.task_id, bill_date=bill_date)
-        file_path = os.path.join(self.parent_path, "output", self.task_id, file_name)
-        if set_date_success:
-            self.save_data(self.call_url, file_path, keyword="call")
-
-        if set_date_success is False:
-            self.un_success.append(("call", bill_date))
-            self.write_log(bill_date + u"不存在通话记录信息！或网络问题设置账单日期失败!")
-
-        if set_date_success is None:
-            self.un_success.append(("call", bill_date))
-            self.write_log(u"[3004] 无法设定通话详单的账单日期")
-            self.write_log(u"通话记录信息获取失败!")
+        if len(call_list) > 0:
+            return call_list
+            pass
+        # # 2. 下载通话记录信息，保存至file_path
+        # file_name = "{tid}_call_log_{bill_date}.xls".format(tid=self.task_id, bill_date=bill_date)
+        # file_path = os.path.join(self.parent_path, "output", self.task_id, file_name)
+        # if set_date_success:
+        #     self.save_data(self.call_url, file_path, keyword="call")
+        #
+        # if set_date_success is False:
+        #     self.un_success.append(("call", bill_date))
+        #     self.write_log(bill_date + u"不存在通话记录信息！或网络问题设置账单日期失败!")
+        #
+        # if set_date_success is None:
+        #     self.un_success.append(("call", bill_date))
+        #     self.write_log(u"[3004] 无法设定通话详单的账单日期")
+        #     self.write_log(u"通话记录信息获取失败!")
 
     def get_smss_info(self, bill_date):
         """
@@ -380,7 +381,7 @@ class Unicom(Operator):
             self.write_log(u"[3004] 无法设定短信记录的账单日期")
             self.write_log(u"短信记录信息获取失败!")
 
-    def get_bills_info(self, bill_date):
+    def get_bill_by_month(self, bill_date):
         """
         爬取指定日期的历史账单
         :param bill_date: 需要爬取的月份，例："2016-05"
@@ -509,7 +510,9 @@ class Unicom(Operator):
                 if result_json is None:
                     self.write_log(u"[3003] 历史账单关键词可能已经更改")
                 else:
-                    return self.save_bill_info(result_json, bill_date)
+                    return self.get_bill_by_month_detail(result_json, bill_date)
+        elif keyword == 'call':
+            return self.get_call_by_month_detail(url, post_data)
         else:
             set_date_success = json_res.get("isSuccess")
 
@@ -525,8 +528,90 @@ class Unicom(Operator):
             self.write_log(u"成功设置查询时间: " + current_infos + "!")
 
 
+    def get_call_by_month_detail(self, check_url, url, bill_date):
 
-    def save_bill_info(self, result_json, bill_date):
+        self.write_log(u"尝试设置查询日期：通话记录...")
+
+        call_list = []
+        # 依次进行如下操作：
+        # 1. 打开信息首页，并检验是否登录状态
+        try:
+            self.ses.get(check_url)
+        except Exception as e:
+            self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + url)
+            self.write_log(str(e))
+
+        if not self.check_if_login():
+            self.write_log(u"在查询 通话记录 掉出登录")
+
+        # 2. 根据不同类型的信息，设置不同的post data
+        date_list = Operator.get_begin_end_date(bill_date)
+
+        page_no = 1
+        post_data = {
+            "pageNo": page_no,
+            "pageSize": "20",
+            "beginDate": date_list[0],
+            "endDate": date_list[1]
+        }
+
+        # 3. 传送post data到指定信息页面
+        try:
+            strtsmp = self.get_timestamp()
+            res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+            call_list.extend(self.get_call_by_page_detail(res.json()))
+            self.write_log(u"查询数据" + str(bill_date) + "月, 查询第1页...")
+        except Exception as e:
+            self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(url))
+            self.write_log(str(e))
+
+        # 4. 检查是否成功获取指定信息：
+        try:
+            json_res = res.json()
+            page_map = json_res.get('pageMap')
+            if page_map != None:
+                total_pages = page_map.get('totalPages')
+                page_no = int(page_map.get('pageNo'))
+
+                for page in range(2, total_pages):
+                    try:
+                        post_data['pageNo'] = str(page)
+                        strtsmp = self.get_timestamp()
+                        res = self.ses.post(url.format(strtsmp=strtsmp), data=post_data)
+                        call_list.extend(self.get_call_by_page_detail(res.json()))
+                        self.write_log(u"查询数据" + str(bill_date) + "月, 查询第" + str(page) + "页...， 总数据页数： " + str(total_pages))
+                    except Exception as e:
+                        self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(url))
+                        self.write_log(str(e))
+
+
+            if json_res.get("issuccess") == True:
+                self.write_log(u"请求通话记录成功， 查询月份： " +  str(bill_date))
+        except Exception as e:
+            self.write_log(u"[3003] 获得的结果不匹配！通话记录 " )
+            self.write_log(str(e))
+
+        return call_list
+
+    def get_call_by_page_detail(self, json_data):
+        ret = list()
+        page_map = json_data.get('pageMap')
+        if page_map != None:
+            result = page_map.get('result')
+            for call_item in result:
+                ret_call = dict()
+                ret_call['call_type'] = call_item['calltypeName']
+                ret_call['call_time'] = call_item['calldate'] + call_item['calltime']
+                ret_call['receive_phone'] = call_item['othernum']
+                ret_call['trade_time'] = call_item['calllonghour']
+                ret_call['trade_type'] = call_item['landtype']
+                ret_call['trade_addr'] = call_item['homeareaName']
+
+                ret.append(ret_call)
+
+        return ret
+
+    def get_bill_by_month_detail(self, result_json, bill_date):
         """
         整理账单返回的JSON信息，保存到数据库
         :param result_json: 爬取返回的历史账单JSON（字典）
