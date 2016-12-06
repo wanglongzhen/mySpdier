@@ -25,6 +25,7 @@ import traceback
 from PIL import Image
 import base64
 
+from location_scraper import location_scrape
 from Operator import Operator
 
 reload(sys)
@@ -42,11 +43,31 @@ class Unicom(Operator):
         self.login_url = 'https://uac.10010.com/portal/homeLogin'
         self.driver = None
 
+        ua = ("Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 " +
+              "(KHTML, like Gecko) Chrome/45.0.2454.93 Safari/537.36")
+        self.header = {
+            "HOST": "iservice.10010.com",
+            "Origin": "http://iservice.10010.com",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": r"https://uac.10010.com/portal/homeLogin",
+            "Accept": r"application/json, text/javascript, */*; q=0.01",
+            "User-Agent": ua,
+            "Accept-Encoding": r"deflate",
+            "Accept-Language": r"zh-CN,zh;q=0.8",
+            "Upgrade-Insecure-Requests": "1",
+            "Content-Type": r"application/x-www-form-urlencoded;charset=UTF-8"
+        }
+
+        # 2.2 创建带上述头信息的会话
+        self.ses = requests.Session()
+        self.ses.headers = self.header
+
     def init_driver(self):
         try:
-            # self.driver = webdriver.PhantomJS()
+            self.driver = webdriver.PhantomJS()
             # self.driver = webdriver.Chrome()
-            self.driver = webdriver.Firefox()
+            # self.driver = webdriver.Firefox()
+
             self.driver.maximize_window()
 
             self.driver.delete_all_cookies()
@@ -60,8 +81,18 @@ class Unicom(Operator):
     def start(self):
         self.login()
 
+        self.init_cookie()
+
         self.spider()
 
+    def init_cookie(self):
+        cks = {}
+        for cookie in self.driver.get_cookies():
+            cks[cookie['name']] = cookie['value']
+
+            requests.utils.add_dict_to_cookiejar(self.ses, {cookie['name']:cookie['value']})
+
+        print "dd"
 
     def login(self, img_sms = None):
         #登录
@@ -134,16 +165,111 @@ class Unicom(Operator):
         return True
 
     def spider(self):
-        wait = ui.WebDriverWait(self.driver, 10)
-        wait.until(lambda driver: self.driver.find_element_by_class_name('mall'))
+        self.get_personal_info()
 
-        myUnionUrl = 'https://uac.10010.com/cust/userinfo/userInfoInit'
-        self.driver.get(myUnionUrl)
 
-        if self.waiter_fordisplayed(self.driver, 'balance') == False:
-            self.logger.info(u'跳转我的联通页面失败' + self.phone_num)
+    def get_personal_infos(self):
+        """
+        获取账号基本信息
+        :return:
+        """
+        # 1. 获取个人基本信息
+        checkin_url = "http://iservice.10010.com/e3/static/check/checklogin?_="
+        try:
+            res = self.ses.post(checkin_url + Operator.get_timestamp())
+        except Exception as e:
+            self.logger.error(u"[3002] 无法发送获取登录状态的请求" + str(checkin_url))
+            self.logger.error(str(e))
+            return False
+
+        try:
+            res_json = res.json().get("userInfo")
+        except Exception as e:
+            self.logger.error(u"[3003] 用户基本信息(userInfo)返回内容异常")
+            self.logger.error(str(e))
+            return False
+
+        # 2. 获取余额以及最近更新时间
+        try:
+            self.ses.get(self.user_info)
+            res2 = self.ses.post(self.user_json)
+        except Exception as e:
+            self.logger.error(u"[3002] 无法打开账户信息页面" + str(self.user_json))
+            self.logger.error(str(e))
+            return False
+
+        try:
+            res2_json = res2.json().get("defBindnumInfo").get("costInfo")
+        except Exception as e:
+            self.logger.error(u"[3003] 账户信息页面(costInfo)返回内容异常")
+            self.logger.error(str(e))
+            res2_json = None
+
+        # 3. 整理结果
+        open_time = res_json.get("opendate")
+        if open_time is None:
+            try:
+                open_time = res2.json().get("defBindnumInfo").get("mydetailinfo").get("opendate")
+            except Exception as e:
+                self.logger.error(u"[3003] 账户信息页面返回内容异常")
+                self.logger.error(str(e))
+                open_time = ""
+            else:
+                open_time = open_time.replace(u"年", "-").replace(u"月", "-").replace(u"日", "").strip()
         else:
-            self.logger.info(u'跳转我的联通页面成功' + self.phone_num)
+            open_time = open_time[:4] + '-' + open_time[4:6] + '-' + open_time[6:8]
+
+        result = dict()
+        result["name"] = res_json.get("custName")
+        result["carrier"] = "CHINA_UNICOM"
+        result["level"] = res_json.get("vip_level")
+        result["state"] = -1
+        result["open_time"] = open_time
+        result["package_name"] = res_json.get("packageName")
+
+        if result["level"] is None:
+            try:
+                res = self.ses.post("https://uac.10010.com/cust/userinfo/userInfo")
+                level_json = res.json()
+            except Exception as e:
+                self.logger.error(u"[3002] 无法获取用户VIP等级")
+                result["level"] = ""
+                self.logger.error(str(e))
+            else:
+                result["level"] = level_json.get("vipLevel")
+
+        if result["level"] is None:
+            result["level"] = ""
+
+        if res2_json is not None:
+            try:
+                result["available_balance"] = int(float(res2_json.get("balance")) * 100)
+            except Exception as e:
+                self.logger.error(u"[3003] 获取的账户余额数值异常: " + str(res2_json.get("balance")))
+                self.logger.error(str(e))
+                result["available_balance"] = None
+        else:
+            result["available_balance"] = None
+        result["last_modify_time"] = ""
+
+        if result["available_balance"] is None:
+            result["available_balance"] = ''
+
+        # 获取归属地
+        try:
+            result["province"], result["city"] = location_scrape(self.phone)
+        except Exception as e:
+            self.logger.error(u"[3004] 获取号码归属地的程序出现异常")
+            self.logger.error(str(e))
+            result["province"], result["city"] = ["", ""]
+
+        file_name = "{tid}_basic.json".format(tid=self.task_id)
+        file_path = os.path.join(self.parent_path, "output", self.task_id, file_name)
+
+        # with open(file_path, "wb") as f:
+        #     json.dump(result, f)
+
+        return True
 
     def save_data(self):
         pass
@@ -151,5 +277,6 @@ class Unicom(Operator):
 
 if __name__ == '__main__':
     unicom = Unicom('18513622865', '861357')
-    unicom.login()
+    # unicom.login()
+    unicom.start()
     pass

@@ -566,3 +566,8 @@ class UnicomSpider(Union):
         return history_host
 
 
+
+
+if __name__ == '__main__':
+    spider = UnicomSpider()
+    spider.login()

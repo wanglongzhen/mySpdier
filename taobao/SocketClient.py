@@ -10,7 +10,8 @@ from socket import *
 import json
 import base64
 
-host = '114.215.95.177'
+# host = '114.215.95.177'
+host = 'localhost'
 port = 9999
 bufsize = 10240
 addr = (host, port)
@@ -114,6 +115,6 @@ def mobile():
 if __name__ == '__main__':
 
     #联通
-    # unicom()
+    unicom()
     #移动
-    mobile()
+    # mobile()

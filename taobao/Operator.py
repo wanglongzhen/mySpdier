@@ -51,6 +51,8 @@ class Operator(object):
         self.task_id = self.get_task_no(self.phone_number)
         self.init_log(self.phone_number)
 
+
+
     def init_log(self, phone_number):
         #读取日志的路径
         cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
