@@ -18,6 +18,7 @@ import re
 import codecs
 import platform
 from comm_log import comm_log
+import requests
 
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -50,6 +51,69 @@ class Operator(object):
 
         self.task_id = self.get_task_no(self.phone_number)
         self.init_log(self.phone_number)
+
+        ua = ("Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 " +
+              "(KHTML, like Gecko) Chrome/45.0.2454.93 Safari/537.36")
+        self.header = {
+            "HOST": "iservice.10010.com",
+            "Origin": "http://iservice.10010.com",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": r"https://uac.10010.com/portal/homeLogin",
+            "Accept": r"application/json, text/javascript, */*; q=0.01",
+            "User-Agent": ua,
+            "Accept-Encoding": r"deflate",
+            "Accept-Language": r"zh-CN,zh;q=0.8",
+            "Upgrade-Insecure-Requests": "1",
+            "Content-Type": r"application/x-www-form-urlencoded;charset=UTF-8"
+        }
+
+        # 2.2 创建带上述头信息的会话
+        self.ses = requests.Session()
+        self.ses.headers = self.header
+
+        # 3. 相关网页
+        # 3.1 主页
+        self.home_url = "http://www.10010.com/"
+        # 3.2 登录页面
+        self.login_url = "https://uac.10010.com/portal/homeLogin"
+        # 3.3 登录认证页面 -- 存在需要替换的字符
+        self.login_url2 = ("https://uac.10010.com/portal/Service/" +
+                           "MallLogin?callback=jQuery1720029789068" +
+                           "503305316_{t1}&req_time={t2}&redirectURL" +
+                           "=http%3A%2F%2Fwww.10010.com&userName=" +
+                           "{number}&password={password}&pwdType=" +
+                           "01&productType=01&redirectType=" +
+                           "01&rememberMe=1&_={t3}")
+        # 3.4 通话记录下载地址 excel
+        self.call_url = "http://iservice.10010.com//e3/ToExcel.jsp?type=sound"
+        # 3.5 个人信息地址
+        self.per_info_url = "https://uac.10010.com/cust/infomgr/infomgrInit"
+        self.per_json = "https://uac.10010.com/cust/infomgr/anonymousInfoAJAX"
+
+        # 3.6 历史账单使用json返回值输出，不使用下载excel的方式
+
+        # 3.7 短信记录下载地址
+        self.sms_url = "http://iservice.10010.com/e3/ToExcel.jsp?type=sms3"
+
+        # 3.8 套餐使用余量查询
+        self.user_info = "https://uac.10010.com/cust/userinfo/userInfoInit"
+        self.user_json = "https://uac.10010.com/cust/userinfo/getBindnumInfo"
+
+        # 3.9 获取号码归属地
+        self.location_info = "http://iservice.10010.com/e3/static/life/callerLocationQuery?_="
+
+        # 3.10 获取套餐余量
+        self.package_info = "http://iservice.10010.com/e3/static/query/queryLeavePackageData?_={ts}&menuid=000100040001"
+
+        # 3.11 获取账户充值记录
+        self.money_info = "http://iservice.10010.com/e3/static/query/paymentRecord?_={ts}&menuid=000100010003"
+
+        # 4. 格式化不同不类型的查询信息
+        self.keyword_infos = {
+            "call": u"通话记录信息",
+            "sms": u"短信记录信息",
+            "bill": u"历史账单信息",
+        }
 
     def init_log(self, phone_number):
         #读取日志的路径
@@ -207,7 +271,7 @@ class Operator(object):
         记录driver当前的图片
         :return:
         """
-        dst_file = os.path.join(self.imgroot, str(self.phone_num) + '_' + self.get_timestamp() + '.jpg')
+        dst_file = os.path.join(self.imgroot, str(self.phone_number) + '_' + self.get_timestamp() + '.jpg')
 
         try:
             if self.driver != None:
