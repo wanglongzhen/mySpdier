@@ -156,7 +156,7 @@ class Operator(object):
         return task_no
 
 
-    def save_bill(self, task_id, phone_num, data):
+    def save_bill(self, task_id, phone_number, data):
         """
         存账单信息
         :param data:
@@ -167,13 +167,13 @@ class Operator(object):
         fields = ['month', 'call_pay']
 
         try:
-            self.save_db(task_id, phone_num, table, fields, data)
+            self.save_db(task_id, phone_number, table, fields, data)
         except Exception, e:
             self.write_log(u'保存' + table + u'表失败')
             self.write_log(traceback.format_exc())
             # self.track_back_err_print(sys.exc_info())
 
-    def save_calls(self, task_id, phone_num, data):
+    def save_calls(self, task_id, phone_number, data):
         """
         存通话信息
         :param data:
@@ -183,12 +183,12 @@ class Operator(object):
         table = 'calls'
         fields = ['call_time', 'receive_phone', 'trade_addr', 'trade_type', 'trade_time', 'call_type']
         try:
-            self.save_db( task_id, phone_num, table, fields, data)
+            self.save_db( task_id, phone_number, table, fields, data)
         except Exception, e:
             self.write_log(u'保存' + table + u'表失败')
             self.write_log(traceback.format_exc())
 
-    def save_sms(self, task_id, phone_num, data):
+    def save_sms(self, task_id, phone_number, data):
         """
         存短信信息
         :param data:
@@ -198,13 +198,13 @@ class Operator(object):
         table = 'sms'
         fields = ['send_time', 'receive_phone', 'trade_way']
         try:
-            self.save_db( task_id, phone_num, table, fields, data)
+            self.save_db( task_id, phone_number, table, fields, data)
         except Exception, e:
             self.write_log(u'保存' + table + u'表失败')
             # self.track_back_err_print(sys.exc_info())
             self.write_log(traceback.format_exc())
 
-    def save_basic(self, task_id, phone_num, data):
+    def save_basic(self, task_id, phone_number, data):
         """
         存基本信息
         :param data:
@@ -214,13 +214,13 @@ class Operator(object):
         table = 'basic'
         fields = ['real_name', 'user_source', 'addr', 'id_card', 'phone_remain']
         try:
-            self.save_db( task_id, phone_num, table, fields, data)
+            self.save_db( task_id, phone_number, table, fields, data)
         except Exception, e:
             self.write_log(u'保存' + table + u'表失败')
             self.write_log(traceback.format_exc())
             # self.track_back_err_print(sys.exc_info())
 
-    def save_db(self, task_id, phone_num, table, fields, data):
+    def save_db(self, task_id, phone_number, table, fields, data):
         """
         根据关键词，将结果存入数据库中对应的表中
         :param keyword: 关键词，比如: "basic"
@@ -235,9 +235,12 @@ class Operator(object):
                    ") values (" + vs[:-2] + ")")
         sql_ins_format = sql_ins.format(table=table,
                                         task_id=task_id,
-                                        mobile=phone_num)
+                                        mobile=phone_number)
 
-        param = [[result_slice[k] for k in fields] for result_slice in data]
+        try:
+            param = [[result_slice[k] for k in fields] for result_slice in data]
+        except Exception, e:
+            self.write_log(u"转换数据异常: " + str(e))
 
         get_conn = GetConn()
         conn = get_conn.get_db_conn()
