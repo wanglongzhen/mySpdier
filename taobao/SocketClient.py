@@ -10,8 +10,8 @@ from socket import *
 import json
 import base64
 
-# host = '114.215.95.177'
-host = 'localhost'
+host = '114.215.95.177'
+# host = 'localhost'
 port = 9999
 bufsize = 10240
 addr = (host, port)
@@ -25,6 +25,7 @@ def unicom():
         data = raw_input()
         # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":"861357"}}'
         # data = '{"method":"login","task_no":18662726006, "param": {"mobile_type":"unicom", "password":"526280"}}'
+        # data = '{"method":"login","task_no":"18513622865", "param": {"mobile_type":"unicom", "password":"861357"}}'
 
         if not data or data == 'exit':
             break
@@ -46,7 +47,7 @@ def unicom():
 
             # 输入图片验证码
             data = raw_input()
-            # data = '{"method":"login","task_no":18513622865, "param": {"mobile_type":"unicom", "password":"861357", "img_sms":""}}'
+            # data = '{"method":"login","task_no":"18513622865", "param": {"mobile_type":"unicom", "password":"861357", "img_sms":""}}'
             client.send('%s\r\n' % data)
 
         elif ret_json['img_flag'] == 0:

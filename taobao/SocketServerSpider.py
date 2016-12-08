@@ -22,6 +22,7 @@ import urllib
 import urllib2
 
 import comm_log
+import unicom
 
 
 class Servers(SRH):
@@ -280,7 +281,7 @@ class Servers(SRH):
         img_sms = self.get_value_by_data(param, 'img_sms')
 
         #有图片密码
-        if data['method'] == 'login' and img_sms != None:
+        if data['method'] == 'login' and img_sms != None and img_sms != '':
             # 1登录联通
             print 'login method'
             self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，有图片验证码')
@@ -324,7 +325,10 @@ class Servers(SRH):
             # 1登录联通
             print 'mobile is None login method'
             self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，没有图片验证码')
-            self.mobile = UnicomSpider(task_no, passwd)
+            # self.mobile = UnicomSpider(task_no, passwd)
+            # ret, message = self.mobile.login()
+            self.mobile = unicom.Unicom(task_no, passwd)
+
             ret, message = self.mobile.login()
             if ret == 0:
                 response['error_no'] = 0
@@ -339,7 +343,8 @@ class Servers(SRH):
                 # 2 登录后爬取数据
                 print 'mobile Spider detail info'
                 self.logger.info(u'客户端' + str(self.client_address) + u' 登录成功，开始爬取数据')
-                self.mobile.spider_detail()
+                # self.mobile.spider_detail()
+                self.mobile.spider()
 
                 return response, False
             elif ret == 1:

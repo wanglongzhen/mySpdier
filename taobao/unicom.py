@@ -107,12 +107,18 @@ class Unicom(Operator):
         #登录
         self.init_driver()
 
-        self.open_login_page(self.login_url, self.phone_number, self.phone_passwd)
+        if self.open_login_page(self.login_url, self.phone_number, self.phone_passwd) == False:
+            return 2, '登录页面加载失败'
 
-        self.sumbit_login()
+        result, data = self.sumbit_login()
+        if result == False and data != None:
+            return 1, data
+        elif result == False:
+            return 2, '登录页面加载失败'
 
         self.init_cookie()
 
+        return 0, '登录成功'
 
 
     def open_login_page(self, login_url, phone_number, phone_passwd):
@@ -137,6 +143,45 @@ class Unicom(Operator):
         return True
 
     def sumbit_login(self):
+
+
+        #判断是否有验证码图片
+        try:
+            time.sleep(2)
+            if self.driver.find_element_by_xpath("//img[@id='loginVerifyImg']").is_displayed():
+                self.driver.maximize_window()
+
+                element = self.driver.find_element_by_id('loginVerifyImg')
+                src_file = self.phone_num + '_img.jpg'
+                dst_file = self.phone_num + '_img_corp.jpg'
+                # src_file = 'aaa' + 'aaaimg.jpg'
+                self.driver.save_screenshot(src_file)
+
+                location = element.location
+                size = element.size
+                im = Image.open(src_file)
+                left = location['x']
+                top = location['y']
+                right = location['x'] + size['width']
+                bottom = location['y'] + size['height']
+
+                box = (left, top, right, bottom)
+                im.crop(box).save(dst_file)
+
+                f = open(dst_file, 'rb')  # 二进制方式打开图文件
+                ls_f = base64.b64encode(f.read())  # 读取文件内容，转换为base64编码
+                f.close()
+                return False, ls_f
+                # print("输入验证码")
+                # self.logger.error(u'登录失败，输入验证码' + self.phone_num)
+        except Exception, e:
+            self.recordErrImg()
+            self.logger.info(traceback.format_exc())
+            print traceback.print_exc()
+            print("登录成功")
+
+        self.recordErrImg()
+
         self.driver.find_element_by_xpath("//input[@id='login1']").click()
         if self.wait_element_displayed(self.driver, 'nickSpan') == False:
             self.write_log(u'元素加载失败')
@@ -155,11 +200,11 @@ class Unicom(Operator):
                 self.recordErrImg()
                 self.write_log(traceback.format_exc())
 
-            return False
+            return False, None
 
         self.write_log(u'登录成功')
 
-        return True
+        return True, None
 
     def wait_element_displayed(self, browser, element):
         count = 0
@@ -180,25 +225,25 @@ class Unicom(Operator):
         #个人信息
         personal_info = self.get_personal_info()
 
-        # #账单
-        # bill_info = self.get_bill_info()
-        #
-        # #通话
-        # call_info = self.get_call_info()
-        #
-        # #短信
-        # smss_info = self.get_smss_info()
+        #账单
+        bill_info = self.get_bill_info()
+
+        #通话
+        call_info = self.get_call_info()
+
+        #短信
+        smss_info = self.get_smss_info()
 
         #存数据到数据库中\
         self.write_log(u'保存用户的信息到数据库，开始' + self.phone_number)
         if len(personal_info) > 0:
             Operator.save_basic(self, self.task_id, self.phone_number, [personal_info])
-        # if len(bill_info) > 0:
-        #     Operator.save_bill(self, self.task_id, self.phone_number, bill_info)
-        # if len(call_info) > 0:
-        #     Operator.save_calls(self, self.task_id, self.phone_number, call_info)
-        # if len(smss_info) > 0:
-        #     Operator.save_sms(self, self.task_id, self.phone_number, smss_info)
+        if len(bill_info) > 0:
+            Operator.save_bill(self, self.task_id, self.phone_number, bill_info)
+        if len(call_info) > 0:
+            Operator.save_calls(self, self.task_id, self.phone_number, call_info)
+        if len(smss_info) > 0:
+            Operator.save_sms(self, self.task_id, self.phone_number, smss_info)
 
         self.write_log(u'保存用户的信息到数据库，完成。 ' + self.phone_number)
 
