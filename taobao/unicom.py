@@ -107,12 +107,15 @@ class Unicom(Operator):
         #登录
         self.init_driver()
 
-        self.open_login_page(self.login_url, self.phone_number, self.phone_passwd)
+        if self.open_login_page(self.login_url, self.phone_number, self.phone_passwd) == False:
+            return False, '登录页面加载失败'
 
-        self.sumbit_login()
+        if self.sumbit_login() == False:
+            return False, '点击登录失败'
 
         self.init_cookie()
 
+        return True, '登录成功'
 
 
     def open_login_page(self, login_url, phone_number, phone_passwd):
