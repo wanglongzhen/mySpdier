@@ -281,7 +281,7 @@ class Servers(SRH):
         img_sms = self.get_value_by_data(param, 'img_sms')
 
         #有图片密码
-        if data['method'] == 'login' and img_sms != None:
+        if data['method'] == 'login' and img_sms != None and img_sms != '':
             # 1登录联通
             print 'login method'
             self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，有图片验证码')
@@ -327,7 +327,8 @@ class Servers(SRH):
             self.logger.info(u'客户端' + str(self.client_address) + u' 登录联通，没有图片验证码')
             # self.mobile = UnicomSpider(task_no, passwd)
             # ret, message = self.mobile.login()
-            self.mobile = unicom(task_no, passwd)
+            self.mobile = unicom.Unicom(task_no, passwd)
+
             ret, message = self.mobile.login()
             if ret == 0:
                 response['error_no'] = 0

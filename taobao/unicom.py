@@ -225,25 +225,25 @@ class Unicom(Operator):
         #个人信息
         personal_info = self.get_personal_info()
 
-        # #账单
-        # bill_info = self.get_bill_info()
-        #
-        # #通话
-        # call_info = self.get_call_info()
-        #
-        # #短信
-        # smss_info = self.get_smss_info()
+        #账单
+        bill_info = self.get_bill_info()
+
+        #通话
+        call_info = self.get_call_info()
+
+        #短信
+        smss_info = self.get_smss_info()
 
         #存数据到数据库中\
         self.write_log(u'保存用户的信息到数据库，开始' + self.phone_number)
         if len(personal_info) > 0:
             Operator.save_basic(self, self.task_id, self.phone_number, [personal_info])
-        # if len(bill_info) > 0:
-        #     Operator.save_bill(self, self.task_id, self.phone_number, bill_info)
-        # if len(call_info) > 0:
-        #     Operator.save_calls(self, self.task_id, self.phone_number, call_info)
-        # if len(smss_info) > 0:
-        #     Operator.save_sms(self, self.task_id, self.phone_number, smss_info)
+        if len(bill_info) > 0:
+            Operator.save_bill(self, self.task_id, self.phone_number, bill_info)
+        if len(call_info) > 0:
+            Operator.save_calls(self, self.task_id, self.phone_number, call_info)
+        if len(smss_info) > 0:
+            Operator.save_sms(self, self.task_id, self.phone_number, smss_info)
 
         self.write_log(u'保存用户的信息到数据库，完成。 ' + self.phone_number)
 
