@@ -65,7 +65,7 @@ class Servers(SRH):
         if not os.path.isdir(log_path):
             os.makedirs(log_path)
 
-        self.logger = comm_log(logname, logpath=log_path)
+        self.logger = comm_log.comm_log(logname, logpath=log_path)
 
         self.imgroot = os.path.join(self._LOGROOT, 'img')
         # 如果目录不存在，则创建一个目录
