@@ -200,7 +200,7 @@ class Unicom(Operator):
                 self.recordErrImg()
                 self.write_log(traceback.format_exc())
 
-            return False, None
+            return False, message
 
         self.write_log(u'登录成功')
 
