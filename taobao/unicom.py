@@ -111,10 +111,10 @@ class Unicom(Operator):
             return 2, '登录页面加载失败'
 
         result, data = self.sumbit_login()
-        if result == False and data != None:
+        if result == 1:
             return 1, data
-        elif result == False:
-            return 2, '登录页面加载失败'
+        elif result == 2:
+            return 2, data
 
         self.init_cookie()
 
@@ -171,7 +171,7 @@ class Unicom(Operator):
                 f = open(dst_file, 'rb')  # 二进制方式打开图文件
                 ls_f = base64.b64encode(f.read())  # 读取文件内容，转换为base64编码
                 f.close()
-                return False, ls_f
+                return 1, ls_f
                 # print("输入验证码")
                 # self.logger.error(u'登录失败，输入验证码' + self.phone_num)
         except Exception, e:
@@ -200,11 +200,11 @@ class Unicom(Operator):
                 self.recordErrImg()
                 self.write_log(traceback.format_exc())
 
-            return False, message
+            return 2, message
 
         self.write_log(u'登录成功')
 
-        return True, None
+        return 0, None
 
     def wait_element_displayed(self, browser, element):
         count = 0
