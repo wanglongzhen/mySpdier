@@ -23,6 +23,10 @@ import urllib2
 
 import comm_log
 import unicom
+import os
+import datetime
+import codecs
+import platform
 
 
 class Servers(SRH):
@@ -32,12 +36,43 @@ class Servers(SRH):
         """
 
         log_name = str(time.time()).replace(".", "0")
-        self.logger = comm_log.comm_log(log_name)
+        # self.logger = comm_log.comm_log(log_name)
+        self.logger = self.init_log(log_name)
         self.logger.info(u'服务端初始化成功.等待客户端发送请求！')
         self.mobile = None
 
         SRH.__init__(self, request, client_address, server)
 
+
+    def init_log(self, logname, conf = './db.conf'):
+        #读取日志的路径
+        cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
+        cfg_path = os.path.join(cur_script_dir, conf)
+        cfg_reder = ConfigParser.ConfigParser()
+        cfg_reder.readfp(codecs.open(cfg_path, "r", "utf_8"))
+
+        today = datetime.date.today().strftime('%Y%m%d')
+
+        self._SECNAME = "LOGPATH"
+        if platform.platform().find("windows") != -1 or platform.platform().find("Windows") != -1:
+            self._OPTNAME = "WINDOWS_LOGDIR"
+        else:
+            self._OPTNAME = "LINUX_LOGDIR"
+        self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
+
+        #创建日志文件的路径
+        log_path = os.path.join(self._LOGROOT, today)
+        if not os.path.isdir(log_path):
+            os.makedirs(log_path)
+
+        self.logger = comm_log.comm_log(logname, logpath=log_path)
+
+        self.imgroot = os.path.join(self._LOGROOT, 'img')
+        # 如果目录不存在，则创建一个目录
+        if not os.path.isdir(self.imgroot):
+            os.makedirs(self.imgroot)
+
+        return self.logger
 
     def handle(self):
         """

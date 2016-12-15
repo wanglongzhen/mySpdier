@@ -111,10 +111,10 @@ class Unicom(Operator):
             return 2, '登录页面加载失败'
 
         result, data = self.sumbit_login()
-        if result == False and data != None:
+        if result == 1:
             return 1, data
-        elif result == False:
-            return 2, '登录页面加载失败'
+        elif result == 2:
+            return 2, data
 
         self.init_cookie()
 
@@ -171,7 +171,7 @@ class Unicom(Operator):
                 f = open(dst_file, 'rb')  # 二进制方式打开图文件
                 ls_f = base64.b64encode(f.read())  # 读取文件内容，转换为base64编码
                 f.close()
-                return False, ls_f
+                return 1, ls_f
                 # print("输入验证码")
                 # self.logger.error(u'登录失败，输入验证码' + self.phone_num)
         except Exception, e:
@@ -200,11 +200,11 @@ class Unicom(Operator):
                 self.recordErrImg()
                 self.write_log(traceback.format_exc())
 
-            return False, message
+            return 2, message
 
         self.write_log(u'登录成功')
 
-        return True, None
+        return 0, None
 
     def wait_element_displayed(self, browser, element):
         count = 0
@@ -261,14 +261,14 @@ class Unicom(Operator):
             res = self.ses.post(checkin_url + Operator.get_timestamp())
         except Exception as e:
             self.write_log(u"[3002] 无法发送获取登录状态的请求" + str(checkin_url))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return False
 
         try:
             res_json = res.json().get("userInfo")
         except Exception as e:
             self.write_log(u"[3003] 用户基本信息(userInfo)返回内容异常")
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return False
 
         # 2. 获取余额以及最近更新时间
@@ -277,14 +277,14 @@ class Unicom(Operator):
             res2 = self.ses.post(self.user_json)
         except Exception as e:
             self.write_log(u"[3002] 无法打开账户信息页面" + str(self.user_json))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return False
 
         try:
             res2_json = res2.json().get("defBindnumInfo").get("costInfo")
         except Exception as e:
             self.write_log(u"[3003] 账户信息页面(costInfo)返回内容异常")
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             res2_json = None
 
         # 3. 整理结果
@@ -294,7 +294,7 @@ class Unicom(Operator):
                 open_time = res2.json().get("defBindnumInfo").get("mydetailinfo").get("opendate")
             except Exception as e:
                 self.write_log(u"[3003] 账户信息页面返回内容异常")
-                self.write_log(str(e))
+                self.write_log(traceback.format_exc())
                 open_time = ""
             else:
                 open_time = open_time.replace(u"年", "-").replace(u"月", "-").replace(u"日", "").strip()
@@ -318,7 +318,7 @@ class Unicom(Operator):
             except Exception as e:
                 self.write_log(u"[3002] 无法获取用户VIP等级")
                 result["level"] = ""
-                self.write_log(str(e))
+                self.write_log(traceback.format_exc())
             else:
                 result["level"] = level_json.get("vipLevel")
 
@@ -330,7 +330,7 @@ class Unicom(Operator):
                 result["phone_remain"] = int(float(res2_json.get("balance")) * 100)
             except Exception as e:
                 self.write_log(u"[3003] 获取的账户余额数值异常: " + str(res2_json.get("balance")))
-                self.write_log(str(e))
+                self.write_log(traceback.format_exc())
                 result["phone_remain"] = None
         else:
             result["phone_remain"] = None
@@ -344,7 +344,7 @@ class Unicom(Operator):
             result["province"], result["city"] = location_scrape(self.phone_number)
         except Exception as e:
             self.write_log(u"[3004] 获取号码归属地的程序出现异常")
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             result["province"], result["city"] = ["", ""]
 
         return result
@@ -442,7 +442,7 @@ class Unicom(Operator):
             self.ses.get(check_url)
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + url)
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         if not self.check_if_login():
             self.write_log(u"在查询 通话记录 掉出登录")
@@ -465,7 +465,7 @@ class Unicom(Operator):
             self.write_log(u"查询数据" + str(bill_date) + "月, 查询第1页...")
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(url))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         # 4. 检查是否成功获取指定信息：
         try:
@@ -492,7 +492,7 @@ class Unicom(Operator):
             self.write_log(u"请求通话记录成功， 查询月份： " +  str(bill_date))
         except Exception as e:
             self.write_log(u"[3003] 获得的结果不匹配！通话记录 " )
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         return call_list
 
@@ -525,7 +525,7 @@ class Unicom(Operator):
             self.ses.get(check_url)
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + url)
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         if not self.check_if_login():
             self.write_log(u"在查询 短信记录 掉出登录")
@@ -549,7 +549,7 @@ class Unicom(Operator):
             self.write_log(u"查询数据" + str(bill_date) + "月, 查询第1页...")
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(url))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         # 4. 检查是否成功获取指定信息：
         try:
@@ -575,7 +575,7 @@ class Unicom(Operator):
             self.write_log(u"请求短信记录成功， 查询月份： " + str(bill_date))
         except Exception as e:
             self.write_log(u"[3003] 获得的结果不匹配！短信记录 ")
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
 
         return smss_list
 
@@ -628,7 +628,7 @@ class Unicom(Operator):
             self.ses.get(url)
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(current_infos) + " : " + url)
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return set_date_success
 
         if not self.check_if_login():
@@ -649,7 +649,7 @@ class Unicom(Operator):
             res = self.ses.post(url2.format(strtsmp=strtsmp), data=post_data)
         except Exception as e:
             self.write_log(u"[3002] 无法打开查询网页(设置查询日期): " + str(url2))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return set_date_success
 
         # 4. 检查是否成功获取指定信息：
@@ -657,7 +657,7 @@ class Unicom(Operator):
             json_res = res.json()
         except Exception as e:
             self.write_log(u"[3003] 获得的结果不匹配！" + str(current_infos))
-            self.write_log(str(e))
+            self.write_log(traceback.format_exc())
             return set_date_success
 
         # 5. 根据查询信息的类别，提取关键词信息
