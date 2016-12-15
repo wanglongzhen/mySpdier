@@ -26,6 +26,7 @@ import time
 import logging.config
 from logging.handlers import TimedRotatingFileHandler
 from logging.handlers import RotatingFileHandler
+import datetime
 
 CommLog_procnum_dict = dict()
 
@@ -275,6 +276,36 @@ def comm_log(procnum, logpath = None):
 
     return CommLog_procnum_dict[procnum]
 
+
+def init_log(phone_number, conf='db.conf'):
+    # 读取日志的路径
+    cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
+    cfg_path = os.path.join(cur_script_dir, conf)
+    cfg_reder = ConfigParser.ConfigParser()
+    cfg_reder.readfp(codecs.open(cfg_path, "r", "utf_8"))
+
+    today = datetime.date.today().strftime('%Y%m%d')
+
+    _SECNAME = "LOGPATH"
+    if platform.platform().find("windows") != -1 or platform.platform().find("Windows") != -1:
+        _OPTNAME = "WINDOWS_LOGDIR"
+    else:
+        _OPTNAME = "LINUX_LOGDIR"
+    _LOGROOT = cfg_reder.get(_SECNAME, _OPTNAME)
+
+    # 创建日志文件的路径
+    log_path = os.path.join(_LOGROOT, today)
+    if not os.path.isdir(log_path):
+        os.makedirs(log_path)
+
+    logger = comm_log(phone_number, logpath=log_path)
+
+    imgroot = os.path.join(_LOGROOT, 'img')
+    # 如果目录不存在，则创建一个目录
+    if not os.path.isdir(imgroot):
+        os.makedirs(imgroot)
+
+    return logger
 
 if __name__ == "__main__":
     # import time
