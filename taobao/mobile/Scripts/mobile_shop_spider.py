@@ -114,6 +114,17 @@ class MobileShopSpider(object):
 
         # meta信息 包含session和password
         # meta = redis_hget_meta(self.task_id)
+        meta = self.get_session(self.task_id)
+
+        # 爬取用的session
+        if meta is None:
+            self.s = requests.session()
+            self.s.verify = self.cacert
+        else:
+            meta_json = json.loads(meta)
+            self.s = pickle.loads(meta_json.get("session").encode("utf-8"))
+            self.password = meta_json.get("password")
+            self.logger.info(u"从redis中读取meta")
 
         if self.step == "Login":
             self.s = requests.session()
@@ -189,11 +200,30 @@ class MobileShopSpider(object):
         #     sendmail.intf_send_mail(self.to_who, self.subject, ''.join(traceback.format_tb(exc_tb)))
         pass
 
+    def get_session(self, task_id):
+        """读取session数据"""
+        meta = None
+        try:
+            session_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.task_id + "_session.pem")
+            input = open(session_path, 'rb')
+            meta = pickle.load(input)
+            input.close()
+        except Exception, e:
+            pass
+
+        return meta
+
+
     def write_session(self):
         """将meta(包含session和password)序列化并写入redis"""
         session = pickle.dumps(self.s)
         meta = dict(session=session, password=self.password)
         self.session = meta
+
+        session_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.task_id + "_session.pem")
+        output = open(session_path, 'wb')
+        pickle.dump(meta, output)
+        output.close()
         # redis_hset_meta(self.task_id, json.dumps(meta))
         # redis_expire_meta(self.task_id)
         # self.logger.info(u"将meta写入redis")
