@@ -97,7 +97,7 @@ class MobileShopSpider(object):
 
         # 日志
         # self.logger = comm_log.comm_log(self.proc_num, "")
-        self.looger = self.init_log(self.phone)
+        self.logger = comm_log.init_log(self.phone)
 
         # 上次该phone的爬取时间
         # 获得该电话号码上次的爬取时间
