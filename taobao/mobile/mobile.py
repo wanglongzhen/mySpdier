@@ -42,7 +42,7 @@ else:
     exit(1)
 
 # 校验老的短信验证码 触发新的短信验证码
-ms_spider_2 = MobileShopSpider(task_id=task_id, phone=phone)
+ms_spider_2 = MobileShopSpider(task_id=task_id, phone=phone, password=passwd, proc_num=proc_num, step = "SMS_login")
 with ms_spider_2:
     is_success = ms_spider_2.get_sms_verifycode(sms)
 
@@ -52,10 +52,10 @@ else:
     # ms_spider_2.get_status(is_success=False)
     exit(1)
 
-ms_spider_3 = MobileShopSpider(task_id=task_id, phone=phone)
+ms_spider_3 = MobileShopSpider(task_id=task_id, phone=phone, password=passwd, proc_num=proc_num, step = "SMS_crawl")
 with ms_spider_3:
     is_success = ms_spider_3.check_sms_verifycode(sms)
-    # ms_spider_3.start_spider_details()
+    ms_spider_3.start_spider_details()
 
 
 if not is_success:

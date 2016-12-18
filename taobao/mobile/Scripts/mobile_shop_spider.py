@@ -36,6 +36,7 @@ from settings import headers, RETRY_TIMES, DELAY_TIME, DETAIL_FAIL_INFO
 from mongodb_connect import connect_mongodb, get_last_scape_dt
 from redis_connect import redis_hget_meta, redis_expire_meta, redis_hset_meta, redis_insert_set
 import sendmail
+import MySQLdb
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
@@ -99,6 +100,7 @@ class MobileShopSpider(object):
         # self.logger = comm_log.comm_log(self.proc_num, "")
         self.logger = comm_log.init_log(self.phone)
 
+
         # 上次该phone的爬取时间
         # 获得该电话号码上次的爬取时间
         # 返回样例 (u'2016-11-29 11:52:55', u'2016-11', u'201611', u'2016-11-29 00:00:00')
@@ -117,21 +119,21 @@ class MobileShopSpider(object):
         meta = self.get_session(self.task_id)
 
         # 爬取用的session
-        if meta is None:
-            self.s = requests.session()
-            self.s.verify = self.cacert
-        else:
-            meta_json = json.loads(meta)
-            self.s = pickle.loads(meta_json.get("session").encode("utf-8"))
-            self.password = meta_json.get("password")
-            self.logger.info(u"从redis中读取meta")
+        # if meta is None:
+        #     self.s = requests.session()
+        #     self.s.verify = self.cacert
+        # else:
+        #     meta_json = json.loads(meta)
+        #     self.s = pickle.loads(meta_json.get("session").encode("utf-8"))
+        #     self.password = meta_json.get("password")
+        #     self.logger.info(u"从redis中读取meta")
 
         if self.step == "Login":
             self.s = requests.session()
             self.s.verify = self.cacert
             self.logger.info(u"Login 重新生成session")
         else:
-            meta_json = json.loads(self.session)
+            meta_json = json.loads(meta)
             self.s = pickle.loads(meta_json.get("session").encode("utf-8"))
             self.password = meta_json.get("password")
             self.logger.info(u"从redis中读取meta")
@@ -154,36 +156,6 @@ class MobileShopSpider(object):
         self.to_who = ['mime-spider@mi-me.com']
         self.subject = 'CMCC WEB: {} {}'.format(self.step, self.task_id)
 
-    def init_log(self, phone_number, conf = 'db.conf'):
-        #读取日志的路径
-        cur_script_dir = os.path.split(os.path.realpath(__file__))[0]
-        cfg_path = os.path.join(cur_script_dir, conf)
-        cfg_reder = ConfigParser.ConfigParser()
-        cfg_reder.readfp(codecs.open(cfg_path, "r", "utf_8"))
-
-        today = datetime.date.today().strftime('%Y%m%d')
-
-        self._SECNAME = "LOGPATH"
-        if platform.platform().find("windows") != -1 or platform.platform().find("Windows") != -1:
-            self._OPTNAME = "WINDOWS_LOGDIR"
-        else:
-            self._OPTNAME = "LINUX_LOGDIR"
-        self._LOGROOT = cfg_reder.get(self._SECNAME, self._OPTNAME)
-
-        #创建日志文件的路径
-        log_path = os.path.join(self._LOGROOT, today)
-        if not os.path.isdir(log_path):
-            os.makedirs(log_path)
-
-        self.logger = comm_log(phone_number, logpath=log_path)
-
-        self.imgroot = os.path.join(self._LOGROOT, 'img')
-        # 如果目录不存在，则创建一个目录
-        if not os.path.isdir(self.imgroot):
-            os.makedirs(self.imgroot)
-
-        return self.logger
-
     def __enter__(self):
         return self
 
@@ -204,7 +176,9 @@ class MobileShopSpider(object):
         """读取session数据"""
         meta = None
         try:
-            session_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.task_id + "_session.pem")
+            # session_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cmcc_web_1481813666334" + "_session.pem")
+            self.logger._LOGROOT
+            session_path = os.path.join(self.logger._LOGROOT, self.task_id + ".session")
             input = open(session_path, 'rb')
             meta = pickle.load(input)
             input.close()
@@ -220,9 +194,9 @@ class MobileShopSpider(object):
         meta = dict(session=session, password=self.password)
         self.session = meta
 
-        session_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.task_id + "_session.pem")
+        session_path = os.path.join(self.logger._LOGROOT, self.task_id + ".session")
         output = open(session_path, 'wb')
-        pickle.dump(meta, output)
+        pickle.dump(json.dumps(meta), output)
         output.close()
         # redis_hset_meta(self.task_id, json.dumps(meta))
         # redis_expire_meta(self.task_id)
@@ -555,6 +529,7 @@ class MobileShopSpider(object):
     def get_sms(self):
         """爬取短信详单
         :return is_sms_success 正常爬取 True ‘特殊时期不受理详单查询业务’ False"""
+        sms_list = []
         for month in self.month_list:
             # 用于增量爬取 月份大于等于上次爬取的月份才爬 month:"201610"  last_scape_month:"201609"
             if month >= self.last_scape_month:
@@ -562,21 +537,23 @@ class MobileShopSpider(object):
                 self.logger.info(u"test:短信/彩信详单:{}:{}:{}".format(self.phone, month, resp))
                 for sms in self.parse_sms_by_month(resp, month):
                     # 用于增量爬取 时间(精确到秒)大于等于上次爬取的时间才入库
-                    if self.last_scape_dt_0 <= sms["time"] < self.today:
-                        sms.save()
+                    if self.last_scape_dt_0 <= sms["send_time"] < self.today:
+                        # sms.save()
+                        sms_list.append(sms)
                     else:
                         self.logger.info(u"{}短信时间{}早于上次爬取时间{}(或晚于当天{}) 不再入库 跳过".
-                                         format(self.phone, sms["time"], self.last_scape_dt_0, self.today))
+                                         format(self.phone, sms["send_time"], self.last_scape_dt_0, self.today))
             else:
                 self.logger.info(u"{}短信月份{}早于上次爬取月份{} 不再爬取 跳过".
                                  format(self.phone, month, self.last_scape_month))
-        return True
+        return True, sms_list
 
     @log(u"爬取通话详单")
     def get_call(self):
         """爬取通话详单
         :return is_call_success 正常爬取 True
         DETAIL_FAIL_INFO False 掉出登录"""
+        call_list = []
         for month in self.month_list:
             # 用于增量爬取 月份大于等于上次爬取的月份才爬 month:"201610"  last_scape_month:"201609"
             if month >= self.last_scape_month:
@@ -588,15 +565,16 @@ class MobileShopSpider(object):
                 else:
                     for call in self.parse_call_by_month(resp, month):
                         # 用于增量爬取 时间(精确到秒)大于等于上次爬取的时间才入库
-                        if self.last_scape_dt_0 <= call["time"] < self.today:
-                            call.save()
+                        if self.last_scape_dt_0 <= call["call_time"] < self.today:
+                            # call.save()
+                            call_list.append(call)
                         else:
                             self.logger.info(u"{}通话详时间{}早于上次爬取时间{}(或晚于当天{}) 不再入库 跳过".
-                                             format(self.phone, call["time"], self.last_scape_dt_0, self.today))
+                                             format(self.phone, call["call_time"], self.last_scape_dt_0, self.today))
             else:
                 self.logger.info(u"{}通话月份{}早于上次爬取月份{} 不再爬取 跳过".
                                  format(self.phone, month, self.last_scape_month))
-        return True
+        return True, call_list
 
     @retry(False)
     def get_detail_by_month(self, month_name, bill_type):
@@ -642,21 +620,21 @@ class MobileShopSpider(object):
             return
 
         for value in json_data:
-            sms = Sms(task_id=self.task_id, mobile=self.phone)
-
+            # sms = Sms(task_id=self.task_id, mobile=self.phone)
+            sms = dict()
             # 开始时间 如果开始时间是20(年份)开头，保持不变，否则加上年份
             start_time = value.get("startTime", "").strip()
-            sms["time"] = utils.get_detail_time(start_time, month)
+            sms["send_time"] = utils.get_detail_time(start_time, month)
 
             # 对方号码
-            sms["peer_number"] = value.get("anotherNm", "")
+            sms["receive_phone"] = value.get("anotherNm", "")
 
             # 通话地
             sms["location"] = value.get("commPlac", "")
 
             # 收发状态
             send_type = value.get("commMode")
-            sms["send_type"] = utils.get_send_type(send_type)
+            sms["trade_way"] = utils.get_send_type(send_type)
 
             # 信息类型
             msg_type = value.get("infoType")
@@ -693,28 +671,28 @@ class MobileShopSpider(object):
             return
 
         for value in json_data:
-            call = Call(task_id=self.task_id, mobile=self.phone)
-
+            # call = Call(task_id=self.task_id, mobile=self.phone)
+            call = dict()
             # 开始时间 如果开始时间是20(年份)开头，保持不变，否则加上年份
             start_time = value.get("startTime", "").strip()
-            call["time"] = utils.get_detail_time(start_time, month)
+            call["call_time"] = utils.get_detail_time(start_time, month)
 
             # 对方号码
-            call["peer_number"] = value.get("anotherNm", "")
+            call["receive_phone"] = value.get("anotherNm", "")
 
             # 通话地
-            call["location"] = value.get("commPlac", "")
+            call["trade_addr"] = value.get("commPlac", "")
 
             # 通话类型
-            call["location_type"] = value.get("commType", "")
+            call["trade_type"] = value.get("commType", "")
 
             # 通话时长
             duration = value.get("commTime")
-            call["duration"] = utils.get_duration(duration)
+            call["trade_time"] = utils.get_duration(duration)
 
             # 主被叫
             dial_type = value.get("commMode")
-            call["dial_type"] = utils.get_dial_type(dial_type)
+            call["call_type"] = utils.get_dial_type(dial_type)
 
             # 通话费
             fee = value.get("commFee")
@@ -734,7 +712,7 @@ class MobileShopSpider(object):
             r = self.s.get(url, headers=headers["_get_basic"])
         except requests.RequestException as e:
             self.logger.info(u"爬取个人信息-基本资料失败:{}".format(e.args[0]))
-            return False
+            return False, None
         else:
             # 失败样例
             result = r.content
@@ -778,9 +756,10 @@ class MobileShopSpider(object):
 
         # 解析得到基本信息
         basic = self.parse_basic(result, result_2, result_3, result_4)
-        basic.save()
+        # basic.save()
 
-        return True
+
+        return True, basic
 
     def parse_basic(self, resp, resp_2, resp_3, resp_4):
         """解析基本信息
@@ -790,21 +769,21 @@ class MobileShopSpider(object):
         :param resp_4 [str] 省份-城市相关数据
         :return [Basic] 基本信息"""
 
-        basic = Basic(task_id=self.task_id, mobile=self.phone, carrier="CHINA_MOBILE",
-                      last_modify_time=datetime.datetime.now().strftime('%Y-%m-%d'),
-                      scrape_dt=datetime.datetime.now().strftime('%Y-%m-%d'))
-
+        # basic = Basic(task_id=self.task_id, mobile=self.phone, user_source="CHINA_MOBILE",
+        #               last_modify_time=datetime.datetime.now().strftime('%Y-%m-%d'),
+        #               scrape_dt=datetime.datetime.now().strftime('%Y-%m-%d'))
+        basic = dict()
         # 个人信息-基本资料
         try:
             result = json.loads(resp).get("data")
         except ValueError as e:
             self.logger.info(u"个人信息-基本资料格式改变1:{}:{}".format(e.args[0], resp))
-            basic["name"], basic["level"], basic["state"] = "", "", -1
+            basic["real_name"], basic["level"], basic["state"] = "", "", -1
         else:
             if isinstance(result, dict):
-                basic["name"] = result.get("name", "")
+                basic["real_name"] = result.get("name", "")
                 basic["level"] = result.get("level", "")
-
+                basic["addr"] = result.get("address", "")
                 state = result.get("status")
                 basic["state"] = utils.get_state(state)
 
@@ -818,7 +797,7 @@ class MobileShopSpider(object):
                     basic["open_time"] = utils.get_open_time(open_time)
             else:
                 self.logger.info(u"个人信息-基本资料格式改变2:{}".format(resp))
-                basic["name"], basic["level"],  basic["state"] = "", "", -1
+                basic["real_name"], basic["level"],  basic["state"] = "", "", -1
 
         # 个人信息-套餐名称
         try:
@@ -853,10 +832,10 @@ class MobileShopSpider(object):
         else:
             if isinstance(result_2, dict):
                 available_balance = result_2.get("curFee")
-                basic["available_balance"] = utils.get_value(available_balance)
+                basic["phone_remain"] = utils.get_value(available_balance)
             else:
                 self.logger.info(u"个人信息-当前余额格式改变2:{}".format(resp_2))
-                basic["available_balance"] = 0
+                basic["phone_remain"] = 0
 
         # 个人信息-省份城市
         try:
@@ -874,9 +853,13 @@ class MobileShopSpider(object):
                     self.logger.info("{}".format(e.args[0]))
                 # 城市
                 basic["city"] = result_4.get("id_name_cd", "")
+                if basic["addr"]  == '':
+                    basic["addr"] = basic["province"] + basic["city"]
             else:
                 self.logger.info(u"个人信息-省份城市格式改变2:{}".format(resp_4))
                 basic["province"], basic["city"] = "", ""
+        basic["id_card"] = ''
+        basic["user_source"] = 'CHINA_MOBILE'
 
         return basic
 
@@ -941,41 +924,43 @@ class MobileShopSpider(object):
         url = r"http://shop.10086.cn/i/v1/fee/billinfo/{}?bgnMonth={}&endMonth={}&_={:13.0f}".\
             format(self.phone, begin_month, end_month, time.time() * 1000)
 
+        bill_list = []
         try:
             r = self.s.get(url, headers=headers["_get_basic"])
         except requests.RequestException as e:
             self.logger.info(u"爬取账单信息失败:{}".format(e.args[0]))
-            return False
+            return False, bill_list
         else:
             resp = r.content
             self.logger.info(u"test:账单信息:{}:{}".format(self.phone, resp))
             today = datetime.date.today()
             for bill in self.parse_bill(resp):
                 last_month = datetime.date.strftime(today + relativedelta(months=-1), '%Y-%m')
-                if today.day <= 5 and bill["bill_month"] == last_month:
+                if today.day <= 5 and bill["month"] == last_month:
                     # 如果今天是5号之前, 那么上个月的账单未出, 需要跳过
-                    self.logger.info(u"今天是每月{}号:跳过{}账单".format(today.day, bill["bill_month"]))
+                    self.logger.info(u"今天是每月{}号:跳过{}账单".format(today.day, bill["month"]))
                     continue
 
-                if bill["base_fee"] == 0 and bill["total_fee"] == 0:
+                if bill["base_fee"] == 0 and bill["call_pay"] == 0:
                     # base_fee为零 舍弃
-                    self.logger.info(u"{}的{}月的账单套餐费与总费用为0 跳过".format(self.phone, bill["bill_month"]))
+                    self.logger.info(u"{}的{}月的账单套餐费与总费用为0 跳过".format(self.phone, bill["month"]))
                     continue
 
                 # 这个最后做
-                flag_string = str(self.phone) + bill["bill_month"]
-                flag_md = hashlib.md5()
-                flag_md.update(flag_string)
-                flag_code = redis_insert_set(flag_md.hexdigest())
+                # flag_string = str(self.phone) + bill["month"]
+                # flag_md = hashlib.md5()
+                # flag_md.update(flag_string)
+                # flag_code = redis_insert_set(flag_md.hexdigest())
 
-                if flag_code == 0:
-                    # 重复
-                    self.logger.info(u"{}的{}月的账单已经存在 跳过".format(self.phone, bill["bill_month"]))
-                    continue
+                # if flag_code == 0:
+                #     # 重复
+                #     self.logger.info(u"{}的{}月的账单已经存在 跳过".format(self.phone, bill["month"]))
+                #     continue
 
-                bill.save()
+                # bill.save()
+                bill_list.append(bill)
 
-        return True
+        return True, bill_list
 
     def parse_bill(self, resp):
         """获得当月的账单信息
@@ -996,8 +981,8 @@ class MobileShopSpider(object):
                      "daishou_fee": u"$.billMaterials[?(@.billEntriy='06')].billEntriyValue",
                      }
         for resp_value in resp_list:
-            bill = Bill(task_id=self.task_id, mobile=self.phone)
-
+            # bill = Bill(task_id=self.task_id, mobile=self.phone)
+            bill = dict()
             bill_month = resp_value.get("billMonth", "")
 
             # 爬取当月的的账单不需要
@@ -1008,12 +993,12 @@ class MobileShopSpider(object):
             # 账单月
             if len(bill_month) == 6:
                 # 形如201611
-                bill["bill_month"] = bill_month[:4] + "-" + bill_month[4:6]
+                bill["month"] = bill_month[:4] + "-" + bill_month[4:6]
             elif len(bill_month) == 7:
                 # 形如2016-11
-                bill["bill_month"] = bill_month[:4] + "-" + bill_month[5:7]
+                bill["month"] = bill_month[:4] + "-" + bill_month[5:7]
             else:
-                bill["bill_month"] = ""
+                bill["month"] = ""
 
             # 账单起始日期
             bill_start_date = resp_value.get("billStartDate")
@@ -1055,7 +1040,7 @@ class MobileShopSpider(object):
             bill["actual_fee"] = sum([bill["base_fee"], bill["extra_service_fee"], bill["voice_fee"], bill["sms_fee"],
                                      bill["web_fee"], bill["extra_fee"]])
 
-            bill["total_fee"] = bill["actual_fee"] + bill["discount"]
+            bill["call_pay"] = bill["actual_fee"] + bill["discount"]
 
             bill["extra_discount"] = 0
             bill["paid_fee"] = 0
@@ -1151,26 +1136,39 @@ class MobileShopSpider(object):
                 移动服务异常: (False, "1010")
                 掉出登录: (False, "3001")"""
 
-        is_call_success = self.get_call()
+        is_call_success, call_list = self.get_call()
 
         if not is_call_success:
             # 掉出登录
             return False, "3001"
 
-        self.get_sms()
-        is_basic_success = self.get_basic()
-        self.get_package_usage()
-        self.get_bill()
-        is_recharge_success = self.get_recharge()
+        is_success, sms_list = self.get_sms()
+        is_basic_success, basic = self.get_basic()
+        # self.get_package_usage()
+        is_sueecss, bill_list = self.get_bill()
+        # is_recharge_success = self.get_recharge()
+
+        #存数据到数据库中\
+        self.write_log(u'保存用户的信息到数据库，开始' + self.phone)
+        if len(basic) > 0:
+            self.save_basic(self.task_id, self.phone, [basic])
+        if len(bill_list) > 0:
+            self.save_bill(self.task_id, self.phone, bill_list)
+        if len(call_list) > 0:
+            self.save_calls(self.task_id, self.phone, call_list)
+        if len(sms_list) > 0:
+            self.save_sms(self.task_id, self.phone, sms_list)
+
+        self.write_log(u'保存用户的信息到数据库，完成。 ' + self.phone)
 
         # 写入成功的信息
-        if is_recharge_success and is_basic_success:
-            self.get_status()
-            self.logger.info(u"入库成功")
-            return True, "5000"
-        else:
-            self.logger.info(u"入库失败")
-            return False, "4001"
+        # if is_recharge_success and is_basic_success:
+        #     self.get_status()
+        #     self.logger.info(u"入库成功")
+        #     return True, "5000"
+        # else:
+        #     self.logger.info(u"入库失败")
+        #     return False, "4001"
 
     def get_status(self):
         """写入成功信息"""
@@ -1179,6 +1177,144 @@ class MobileShopSpider(object):
                         status="1",
                         scrape_dt=datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
         status.save()
+
+
+    def save_bill(self, task_id, phone_number, data):
+        """
+        存账单信息
+        :param data:
+        :return:
+        """
+
+        table = "bill"
+        fields = ['month', 'call_pay']
+
+        try:
+            self.save_db(task_id, phone_number, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            self.write_log(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
+
+
+    def save_calls(self, task_id, phone_number, data):
+        """
+        存通话信息
+        :param data:
+        :return:
+        """
+
+        table = 'calls'
+        fields = ['call_time', 'receive_phone', 'trade_addr', 'trade_type', 'trade_time', 'call_type']
+        try:
+            self.save_db(task_id, phone_number, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            self.write_log(traceback.format_exc())
+
+
+    def save_sms(self, task_id, phone_number, data):
+        """
+        存短信信息
+        :param data:
+        :return:
+        """
+
+        table = 'sms'
+        fields = ['send_time', 'receive_phone', 'trade_way']
+        try:
+            self.save_db(task_id, phone_number, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            # self.track_back_err_print(sys.exc_info())
+            self.write_log(traceback.format_exc())
+
+
+    def save_basic(self, task_id, phone_number, data):
+        """
+        存基本信息
+        :param data:
+        :return:
+        """
+
+        table = 'basic'
+        fields = ['real_name', 'user_source', 'addr', 'id_card', 'phone_remain']
+        try:
+            self.save_db(task_id, phone_number, table, fields, data)
+        except Exception, e:
+            self.write_log(u'保存' + table + u'表失败')
+            self.write_log(traceback.format_exc())
+            # self.track_back_err_print(sys.exc_info())
+
+
+    def save_db(self, task_id, phone_number, table, fields, data):
+        """
+        根据关键词，将结果存入数据库中对应的表中
+        :param keyword: 关键词，比如: "basic"
+        :param result: [list]，需要存入数据库的内容
+        :return:
+        """
+        if len(data) == 0:
+            return
+
+        vs = "'{task_id}', '{mobile}', " + "%s, " * len(fields)
+        sql_ins = ("insert into {table} (task_id, mobile, " + ", ".join(fields) +
+                   ") values (" + vs[:-2] + ")")
+        sql_ins_format = sql_ins.format(table=table,
+                                        task_id=task_id,
+                                        mobile=phone_number)
+
+        try:
+            param = [[result_slice[k] for k in fields] for result_slice in data]
+        except Exception, e:
+            self.write_log(u"转换数据异常: " + str(e))
+
+        get_conn = GetConn()
+        conn = get_conn.get_db_conn()
+        cursor = conn.cursor()
+
+        try:
+            cursor.executemany(sql_ins_format, param)
+        except Exception as e:
+            self.write_log(u"无法写入数据库: " + str(e))
+            self.write_log(sql_ins_format)
+            self.write_log(u'写入数据失败' + table + u', sql : ' + sql_ins_format)
+        else:
+            conn.commit()
+            self.write_log(u'写入数据成功' + table + u', sql : ' + sql_ins_format)
+            self.write_log(u'写入数据成功' + table + u', 写入数据数目： ' + str(len(param)))
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    def write_log(self, message, level='INFO'):
+        if level == 'INFO':
+            self.logger.info(message)
+        elif level == 'ERROR':
+            self.logger.error(message)
+        else:
+            self.logger.error(message)
+
+class GetConn(object):
+    """
+    获取数据库连接
+    """
+    def get_db_conn(self, cfg_page = 'db.conf'):
+        # 初始化配置文件
+        conf = ConfigParser.ConfigParser()
+        conf.read(cfg_page)
+        print conf.sections()
+
+        host = conf.get('unicom', 'host')
+        user = conf.get('unicom', 'username')
+        passwd = conf.get('unicom', 'passwd')
+        database = conf.get('unicom', 'database')
+        port = int(conf.get('unicom', 'port'))
+
+        conn = MySQLdb.connect(host=host, user=user, passwd = passwd, db=database, port = port, charset='utf8')
+
+        return conn
 
 
 if __name__ == "__main__":

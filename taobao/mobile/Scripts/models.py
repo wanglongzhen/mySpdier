@@ -15,15 +15,15 @@ class Basic(Document):
     """账号基本信息 basic"""
     task_id = StringField(required=True)
     mobile = StringField(required=True)
-    name = StringField(required=True)
-    carrier = StringField(required=True)
+    real_name = StringField(required=True)
+    user_source = StringField(required=True)
     province = StringField(required=True)
     city = StringField(required=True, default="")
     open_time = StringField(required=True, default="")
     level = StringField(required=True, default="")
     package_name = StringField(required=True, default="")
     state = IntField(required=True, default=-1)
-    available_balance = IntField(required=True, default=0)
+    phone_remain = IntField(required=True, default=0)
     last_modify_time = StringField(required=True)
     scrape_dt = StringField(required=True)
 
