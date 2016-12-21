@@ -667,7 +667,7 @@ def main(cfg_path = 'db.conf'):
     print conf.sections()
 
     host = conf.get('server', 'host')
-    host = 'localhost'
+    # host = 'localhost'
     port = int(conf.get('server', 'port'))
     addr = (host, port)
 
