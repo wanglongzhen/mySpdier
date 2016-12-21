@@ -33,9 +33,6 @@ import utils
 import comm_log
 from models import Sms, Call, Basic, Bill, PackageUsage, Recharge, PackageItem, Status
 from settings import headers, RETRY_TIMES, DELAY_TIME, DETAIL_FAIL_INFO
-from mongodb_connect import connect_mongodb, get_last_scape_dt
-from redis_connect import redis_hget_meta, redis_expire_meta, redis_hset_meta, redis_insert_set
-import sendmail
 import MySQLdb
 reload(sys)
 sys.setdefaultencoding("utf-8")
@@ -1149,7 +1146,7 @@ class MobileShopSpider(object):
         # is_recharge_success = self.get_recharge()
 
         #存数据到数据库中\
-        self.write_log(u'保存用户的信息到数据库，开始' + self.phone)
+        self.write_log(u'保存用户的信息到数据库，开始' + str(self.phone))
         if len(basic) > 0:
             self.save_basic(self.task_id, self.phone, [basic])
         if len(bill_list) > 0:
@@ -1159,7 +1156,9 @@ class MobileShopSpider(object):
         if len(sms_list) > 0:
             self.save_sms(self.task_id, self.phone, sms_list)
 
-        self.write_log(u'保存用户的信息到数据库，完成。 ' + self.phone)
+        self.write_log(u'保存用户的信息到数据库，完成。 ' + str(self.phone))
+
+        return True, "5000"
 
         # 写入成功的信息
         # if is_recharge_success and is_basic_success:

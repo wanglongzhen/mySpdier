@@ -12,6 +12,8 @@ from SocketServer import StreamRequestHandler as SRH
 from time import ctime
 from Spider import UnicomSpider
 from mobileSpider import MobileSpider
+from mobile.Scripts.mobile_shop_spider import MobileShopSpider
+
 
 import ConfigParser
 import time
@@ -149,7 +151,8 @@ class Servers(SRH):
         data['param']['mobile_type'] = mobile_type
 
         if mobile_type == 'mobile':
-            return self.mobile_spider(data)
+            # return self.mobile_spider(data)
+            return self.mobile_spider_new(data)
         elif mobile_type == 'unicom':
             return self.unicom_spider(data)
         elif mobile_type == None:
@@ -181,6 +184,169 @@ class Servers(SRH):
 
 
         return value
+
+
+    def mobile_spider_new(self, data):
+        """
+        移动开始爬取
+        :param data:
+        :param mobile:
+        :return:
+        """
+
+        response = {}
+        if data == None:
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = "传入数据格式不是json格式，解析失败"
+            response['timeout'] = 15
+            response['img_flag'] = 0
+            return response, True
+
+        method = self.get_value_by_data(data, 'method')
+        task_no = self.get_value_by_data(data, 'task_no')
+        param = self.get_value_by_data(data, 'param')
+
+        if param == None:
+            response['error_no'] = 2
+            response['task_no'] = 0
+            response['message'] = "param参数不存在，json格式错误"
+            response['timeout'] = 15
+            response['img_flag'] = 0
+            return response, True
+
+        passwd = self.get_value_by_data(param, 'password')
+
+        if method == 'login' and self.mobile == None:
+            # 1登录触发验证码
+            print 'mobile is None login method'
+            task_id = "cmcc_web_{:13.0f}".format(time.time() * 1000)
+            ms_spider_1 = MobileShopSpider(task_id=task_id, phone=task_no, password=passwd, proc_num=task_no,
+                                           step="Login")
+            # mobile = MobileSpider(task_no, passwd)
+            # ret, message = mobile.login()
+            is_success, code = ms_spider_1.login()
+            if code == "0001":
+                # 触发短信验证码成功 返回前端 登录需要短信验证码
+                message = "触发登录短信验证码成功"
+            elif code == "1010":
+                message = u"fali:移动服务异常:step1:{}:{}".format(code, task_id)
+            else:
+                # 返回前端 其它错误 (不会发生)
+                message = u"fail:其它错误:step1:{}:{}".format(code, task_id)
+            if is_success == True:
+                response['error_no'] = 0
+                response['task_no'] = task_no
+                response['message'] = message
+                response['timeout'] = 10
+
+                str_response = json.dumps(response)
+                self.request.send(str_response)
+
+                # 等待第一次验证码
+                while True:
+                    sms_data = self.request.recv(1024)
+                    json_sms_data = self.json_value(sms_data)
+                    sms_param = self.get_value_by_data(json_sms_data, 'param')
+                    sms_passwd = self.get_value_by_data(sms_param, 'sms_pwd')
+                    ms_spider_2 = MobileShopSpider(task_id=task_id, phone=task_no, password=passwd, proc_num=task_no,
+                                                   step="SMS_login")
+                    is_success, result_code = ms_spider_2.get_sms_verifycode(sms_passwd)
+                    # ret, message = mobile.login_first_sms(sms_passwd)
+
+                    if result_code == "0003":
+                        # 登录短信验证码成功 请求发送爬取短信验证码
+                        message = u"登录短信验证码校验成功:step2:{}:{}".format(result_code, task_id)
+                    elif result_code == "1010":
+                        # 返回前端 可能移动服务存在异常，请稍后再试（也有可能是移动的接口发生更改）or 请求爬取短信验证码失败
+                        message = u"移动服务异常:step2:{}:{}".format(result_code, task_id)
+                    elif result_code == "1001":
+                        # 返回前端 用户名密码不匹配
+                        message = u"stat:fail:用户名密码不匹配:step2:{}:{}".format(result_code, task_id)
+                    elif result_code == "1003":
+                        # 返回前端 登录短信验证码输入错误
+                        message = u"stat:fail:登录短信验证码不正确或过期:step2:{}:{}".format(result_code, task_id)
+                    else:
+                        # 返回前端 其它错误
+                        message = u"stat:fail:其它错误:step2:{}:{}".format(result_code, task_id)
+
+                    if is_success == False:
+                        response['error_no'] = 1
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                    elif is_success == True:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 70
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                        break
+
+                # 等待第二次短信验证码
+                while True:
+                    sms_data = self.request.recv(1024)
+                    json_sms_data = self.json_value(sms_data)
+                    sms_param = self.get_value_by_data(json_sms_data, 'param')
+                    sms_passwd = self.get_value_by_data(sms_param, 'sms_pwd')
+                    # ret, message = mobile.login_sec_sms(sms_passwd)
+                    ms_spider_3 = MobileShopSpider(task_id=task_id, phone=task_no, password=passwd, proc_num=task_no, step="SMS_crawl")
+                    flag, result_code = ms_spider_3.check_sms_verifycode(sms_passwd)
+
+                    if result_code == "1010":
+                        # 返回前端 可能移动服务存在异常，请稍后再试（也有可能是移动的接口发生更改）
+                        message = u"stat:fail:移动服务异常:step3:{}:{}".format(result_code, task_id)
+                    elif result_code == "1004":
+                        # 返回前端 爬取短信验证码校验失败
+                        message = u"stat:fail:爬取短信验证码不正确或过期:step3:{}:{}".format(result_code, task_id)
+                    else:
+                        message = u"stat:fail:移动服务异常:step3:{}:{}".format(result_code, task_id)
+
+                    if result_code == "0004":
+                        flag, result_code = ms_spider_3.start_spider_details()
+                        if result_code == "5000":
+                            # 爬取短信验证码校验成功 下载入库成功
+                            message = u"stat:total_success:爬取短信验证码校验成功且下载入库成功:step3:{}:{}".format(result_code, task_id)
+                        elif result_code == "1010":
+                            # 返回前端 可能移动服务存在异常，请稍后再试（也有可能是移动的接口发生更改）
+                            message = u"stat:fail:移动服务异常:step3:{}:{}".format(result_code, task_id)
+                        elif result_code == "4001":
+                            # 返回前端 短信验证码校验成功但下载入库失败
+                            message = u"stat:fail:短信验证码校验成功但下载入库失败:step3:{}:{}".format(result_code, task_id)
+                        elif result_code == "3001":
+                            # 返回前端 掉出登录
+                            message = u"stat:fail:掉出登录:step3:{}:{}".format(result_code, task_id)
+                        else:
+                            message = u"stat:fail:移动服务异常:step3:{}:{}".format(result_code, task_id)
+
+                    if flag == False:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+                    elif flag == True:
+                        response['error_no'] = 0
+                        response['task_no'] = task_no
+                        response['message'] = message
+                        response['timeout'] = 10
+                        str_response = json.dumps(response)
+                        self.request.send(str_response)
+
+            else:
+                response['error_no'] = 1
+                response['task_no'] = task_no
+                response['message'] = message
+                response['timeout'] = 10
+
+            return False, response
+
+
+
 
     def mobile_spider(self, data):
         """
@@ -501,7 +667,7 @@ def main(cfg_path = 'db.conf'):
     print conf.sections()
 
     host = conf.get('server', 'host')
-    # host = 'localhost'
+    host = 'localhost'
     port = int(conf.get('server', 'port'))
     addr = (host, port)
 

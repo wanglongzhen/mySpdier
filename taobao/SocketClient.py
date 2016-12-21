@@ -10,8 +10,8 @@ from socket import *
 import json
 import base64
 
-host = '114.215.95.177'
-# host = 'localhost'
+# host = '114.215.95.177'
+host = 'localhost'
 port = 9999
 bufsize = 10240
 addr = (host, port)
@@ -63,7 +63,7 @@ def mobile():
 
         # 移动数据交互过程
         #等待输入发送服务端的json串
-        # data = '{"method":"login","task_no":13608542018, "param": {"mobile_type":"mobile", "password":"736431"}}'
+        # data = '{"method":"login","task_no":13605394093, "param": {"mobile_type":"mobile", "password":"861357"}}'
         data = raw_input()
 
 
@@ -80,7 +80,7 @@ def mobile():
 
             # 输入登录验证码
             data = raw_input()
-            # data = '{"method":"login_sms","task_no":13608542018, "param": {"mobile_type":"mobile", "password":"736431", "sms_pwd":""}}'
+            # data = '{"method":"login_sms","task_no":13605394093, "param": {"mobile_type":"mobile", "password":"861357", "sms_pwd":"086365"}}'
             client.send('%s\r\n' % data)
 
             data = client.recv(bufsize)
@@ -89,7 +89,7 @@ def mobile():
             if ret['error_no'] ==0:
                 #输入详单查询验证码
                 data = raw_input()
-                # data = '{"method":"login_vec","task_no":18513622965, "param": {"mobile_type":"unicom", "password":861357, "sms_pawd":""}}'
+                # data = '{"method":"login_vec","task_no":13605394093, "param": {"mobile_type":"mobile", "password":861357, "sms_pwd":""}}'
                 client.send('%s\r\n' % data)
 
                 data = client.recv(bufsize)
@@ -116,6 +116,6 @@ def mobile():
 if __name__ == '__main__':
 
     #联通
-    unicom()
+    # unicom()
     #移动
-    # mobile()
+    mobile()
